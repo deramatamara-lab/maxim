@@ -4,7 +4,8 @@
  * Orchestrates pricing, routing, and payment services
  */
 
-import { apiClient, ApiResponse, PaginatedResponse } from './client';
+import { apiClient, ApiResponse } from './client';
+import { PaginatedResponse } from './types';
 import { pricingService, PriceEstimate, DynamicPricingRequest, SurgeInfo } from './pricing';
 import { routingService, Route, RouteOptions } from './routing';
 import { paymentService, PaymentMethodInfo, PaymentRequest } from './PaymentServiceFactory';

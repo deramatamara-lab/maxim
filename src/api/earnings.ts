@@ -316,8 +316,7 @@ class EarningsService {
         success: false,
         error: {
           code: 'PAYOUTS_FETCH_FAILED',
-          message: 'Failed to fetch payout history',
-          details: error,
+          message: `Failed to fetch payout history: ${error instanceof Error ? error.message : String(error)}`,
         },
       };
     }
@@ -357,8 +356,7 @@ class EarningsService {
         success: false,
         error: {
           code: 'PERFORMANCE_FETCH_FAILED',
-          message: 'Failed to fetch performance metrics',
-          details: error,
+          message: `Failed to fetch performance metrics: ${error instanceof Error ? error.message : String(error)}`,
         },
       };
     }

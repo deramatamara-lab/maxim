@@ -68,9 +68,9 @@ export function usePaymentFlow() {
   } = usePaymentMethods();
 
   // Calculate fare when parameters change
-  const calculateFare = useCallback((params: PaymentFlowParams) => {
+  const calculateFare = useCallback(async (params: PaymentFlowParams) => {
     try {
-      const fare = payment.calculateFare({
+      const fare = await payment.calculateFare({
         distance: params.distance,
         duration: params.duration,
         rideOptionId: params.rideOptionId,
@@ -212,17 +212,13 @@ export function usePaymentFlow() {
   }, [state.receipt]);
 
   // Refund payment
-  const refundPayment = useCallback(async (amount?: number, reason?: string) => {
+  const refundPayment = useCallback(async (_amount?: number, _reason?: string) => {
     if (!state.transaction) {
       throw new Error('No transaction available');
     }
 
     try {
-      const refund = await payment.refundTransaction(
-        state.transaction.id, 
-        amount, 
-        reason
-      );
+      const refund = await payment.refundTransaction(state.transaction.id);
       
       setState(prev => ({
         ...prev,
