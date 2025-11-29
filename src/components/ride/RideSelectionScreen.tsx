@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
     left: -1,
     right: -1,
     bottom: -1,
-    borderRadius: ds.radius.xl + 1,
+    borderRadius: 24, // Reference: 24px outer rounded
     overflow: 'hidden',
   },
   glowGradient: {
@@ -454,19 +454,19 @@ const styles = StyleSheet.create({
     left: -16,
     right: -16,
     bottom: -16,
-    borderRadius: ds.radius['2xl'],
-    backgroundColor: ds.colors.primary + '20',
+    borderRadius: 32, // Reference: 32px blur glow
+    backgroundColor: ds.colors.primary + '20', // Reference: aura-primary/20
   },
   cardContent: {
-    borderRadius: ds.radius.xl,
-    padding: ds.spacing.md,
+    borderRadius: 23, // Reference: 23px inner, 24px outer
+    padding: 16, // Reference: 16px padding
     overflow: 'hidden',
   },
   cardContentSelected: {
-    backgroundColor: ds.colors.surface,
+    backgroundColor: '#0A0A0A', // Reference: bg-[#0A0A0A]
   },
   cardContentDefault: {
-    backgroundColor: ds.colors.backgroundAlt,
+    backgroundColor: '#121212', // Reference: bg-[#121212]
     borderWidth: 1,
     borderColor: ds.colors.borderSubtle,
   },

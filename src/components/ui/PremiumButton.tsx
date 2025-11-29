@@ -285,17 +285,17 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   button: {
-    borderRadius: ds.radius.lg,
+    borderRadius: 15, // Reference style
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     shadowColor: ds.colors.primary,
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 5,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
     elevation: 8,
   },
   buttonContent: {
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     left: -ds.spacing.sm,
     right: -ds.spacing.sm,
     bottom: -ds.spacing.sm,
-    borderRadius: ds.radius.lg,
+    borderRadius: 15,
     backgroundColor: ds.colors.primary,
     opacity: 0,
   },
