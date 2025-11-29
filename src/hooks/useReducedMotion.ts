@@ -130,6 +130,7 @@ export function useReducedMotion(): ReducedMotionState & ReducedMotionControls {
           component: 'useReducedMotion',
         });
         setState(prev => ({ ...prev, isLoading: false }));
+        return undefined;
       }
     };
 

@@ -33,6 +33,12 @@ import { earningsService } from '@/api/earnings';
 import { EarningsData, EarningsPeriod } from '@/types/earnings';
 import { useEarnings } from '@/hooks/useEarnings';
 
+// Component props interface
+interface EarningsDashboardProps {
+  onBack?: () => void;
+  driverId?: string;
+}
+
 /**
  * Driver Earnings Dashboard Component
  */
