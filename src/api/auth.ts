@@ -47,18 +47,21 @@ class AuthService {
   /**
    * User login
    * In development mode with USE_MOCK_API=true, allows demo credentials
+   * Demo credentials are controlled via environment variables for security
    */
   async login(credentials: LoginCredentials): Promise<ApiResponse<AuthResponse>> {
     // Check for demo login in development mode
     const useMockApi = process.env.EXPO_PUBLIC_USE_MOCK_API === 'true';
-    const isDemoLogin = credentials.email === 'demo@aura.com' && credentials.password === 'demo123';
+    const demoEmail = process.env.EXPO_PUBLIC_DEMO_EMAIL || 'demo@aura.com';
+    const demoPassword = process.env.EXPO_PUBLIC_DEMO_PASSWORD || 'demo123';
+    const isDemoLogin = credentials.email === demoEmail && credentials.password === demoPassword;
     
     if (useMockApi && isDemoLogin) {
       // Return mock successful login for demo credentials
       const mockResponse: AuthResponse = {
         user: {
           id: 'demo-user-001',
-          email: 'demo@aura.com',
+          email: demoEmail,
           name: 'Demo User',
           phone: '+1234567890',
           role: 'rider',

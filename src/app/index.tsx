@@ -476,10 +476,10 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     fontFamily: ds.typography.family,
-    fontSize: 10,
+    fontSize: ds.typography.size.micro,
     color: ds.colors.textSecondary,
     textTransform: 'uppercase',
-    letterSpacing: 2,
+    letterSpacing: ds.typography.tracking.ultraWide,
   },
   nameText: {
     fontFamily: ds.typography.family,
