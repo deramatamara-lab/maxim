@@ -257,25 +257,28 @@ export const FloatingTabBar = ({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    paddingHorizontal: ds.spacing.xl,
-    paddingVertical: ds.spacing.md,
-    borderRadius: ds.radius['2xl'],
-    gap: ds.spacing.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: ds.colors.glassBorder,
+    paddingHorizontal: 10, // Reference: padding 10px
+    paddingVertical: 10, // Reference: padding 10px
+    borderRadius: 30, // Reference: 30px
+    borderWidth: 1,
+    borderColor: ds.colors.border, // Reference: rgba(255, 255, 255, 0.1)
+    backgroundColor: ds.colors.surface, // Reference: rgba(22, 22, 22, 0.65)
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.7,
+    shadowRadius: 32, // Reference: 0 8px 32px rgba(0, 0, 0, 0.7)
+    elevation: 20,
   },
   tab: {
-    flex: 1,
-    height: 56,
-    borderRadius: ds.radius.lg,
+    height: 44,
+    borderRadius: 50, // Reference: 50%
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: ds.spacing.md,
-    paddingVertical: ds.spacing.sm,
-    borderWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'center',
+    paddingHorizontal: 10, // Reference: 10px
+    paddingVertical: 10,
   },
   label: {
     fontFamily: ds.typography.family,
@@ -289,12 +292,16 @@ const styles = StyleSheet.create({
     color: ds.colors.primary,
   },
   glowDot: {
-    width: 8,
-    height: 8,
-    borderRadius: ds.radius.sm,
+    width: 6, // Reference: 6px
+    height: 6, // Reference: 6px
+    borderRadius: 3, // Reference: 50%
     backgroundColor: ds.colors.primary,
     shadowColor: ds.colors.primary,
-    shadowOpacity: 0.45,
-    shadowRadius: ds.shadow.soft.radius,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 15, // Reference: 0 0 15px 2px primary
+    elevation: 10,
+    position: 'absolute',
+    bottom: -8, // Reference: bottom -8px
   },
 });

@@ -270,15 +270,20 @@ const styles = StyleSheet.create({
   rideOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: ds.spacing.lg,
-    borderRadius: ds.radius.lg,
-    backgroundColor: ds.colors.glass,
+    padding: 15, // Reference: 15px
+    borderRadius: 15, // Reference: 15px
+    backgroundColor: ds.colors.glass, // Reference: rgba(35, 35, 35, 0.7)
     borderWidth: 1,
-    borderColor: ds.colors.glassBorder,
+    borderColor: ds.colors.border, // Reference: rgba(255, 255, 255, 0.1)
   },
   rideOptionSelected: {
     borderColor: ds.colors.primary,
-    backgroundColor: ds.colors.primary + '15',
+    backgroundColor: 'rgba(0, 245, 255, 0.1)', // Reference: rgba(0, 245, 255, 0.1)
+    shadowColor: ds.colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 15, // Reference: 0 0 15px rgba(0, 245, 255, 0.2)
+    elevation: 8,
   },
   rideOptionPressed: {
     opacity: 0.8,

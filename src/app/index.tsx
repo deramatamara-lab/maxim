@@ -398,8 +398,8 @@ const styles = StyleSheet.create({
   mobileFrame: {
     width: ds.layout.shellWidth,
     height: ds.layout.shellHeight,
-    backgroundColor: ds.colors.background,
-    borderRadius: ds.radius.xl,
+    backgroundColor: '#111', // Reference style: #111
+    borderRadius: 40, // Reference style: 40px
     position: 'relative',
     overflow: 'hidden',
     shadowColor: '#000',
@@ -407,6 +407,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.8,
     shadowRadius: 50,
     elevation: 50,
+    borderWidth: 1,
+    borderColor: ds.colors.border, // Reference: rgba(255, 255, 255, 0.1)
   },
   backgroundLayer: {
     position: 'absolute',
@@ -443,12 +445,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: ds.spacing.xl,
-    paddingTop: ds.spacing.xxxl + ds.spacing.xl,
-    paddingBottom: ds.spacing.xl,
+    paddingHorizontal: 20, // Reference style: 20px
+    paddingTop: 40, // Reference style: 40px
+    paddingBottom: 20, // Reference style: 20px
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    zIndex: 10, // Reference: z-index 10
   },
   menuButton: {
     width: ds.spacing.xl + ds.spacing.md,
@@ -471,7 +474,7 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     fontFamily: ds.typography.family,
-    fontSize: ds.typography.size.caption,
+    fontSize: 16, // Reference: 16px
     color: ds.colors.textSecondary,
     marginBottom: ds.spacing.xs,
   },
@@ -482,52 +485,55 @@ const styles = StyleSheet.create({
   },
   nameText: {
     fontFamily: ds.typography.family,
-    fontSize: ds.typography.size.display,
-    fontWeight: ds.typography.weight.semibold,
+    fontSize: 28, // Reference: 28px
+    fontWeight: '600', // Reference: 600
     color: ds.colors.textPrimary,
     letterSpacing: -0.5,
+    lineHeight: 34, // Approximate 1.2 line height
   },
   mainContent: {
     flex: 1,
-    paddingHorizontal: ds.spacing.xl,
-    paddingBottom: ds.spacing.xxxl - ds.spacing.sm,
+    paddingHorizontal: 20, // Reference: 0 20px 120px
+    paddingBottom: 120, // Reference: 120px bottom padding
     justifyContent: 'flex-end',
   },
   glassCard: {
-    backgroundColor: ds.colors.surface,
+    backgroundColor: ds.colors.surface, // Reference: rgba(22, 22, 22, 0.65)
     borderWidth: 1,
-    borderColor: ds.colors.border,
-    marginBottom: ds.spacing.xl,
-    paddingHorizontal: ds.spacing.xl,
-    paddingVertical: ds.spacing.xl,
+    borderColor: ds.colors.border, // Reference: rgba(255, 255, 255, 0.1)
+    marginBottom: 20, // Reference style: 20px
+    paddingHorizontal: 10, // Reference style: padding 10px
+    paddingVertical: 10,
+    borderRadius: 20, // Reference style: 20px
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: ds.spacing.xl + ds.spacing.md,
-    gap: ds.spacing.md + ds.spacing.xs,
+    height: 50, // 15px padding top + bottom * 2 = closer to reference
+    paddingHorizontal: 15, // Reference: 15px padding
   },
   dotOrigin: {
-    width: ds.spacing.sm,
-    height: ds.spacing.sm,
-    borderRadius: ds.spacing.sm / 2,
+    width: 8, // Matching reference dot size
+    height: 8,
+    borderRadius: 4,
     backgroundColor: ds.colors.textSecondary,
   },
   dotDest: {
-    width: ds.spacing.sm,
-    height: ds.spacing.sm,
-    borderRadius: ds.spacing.sm / 2,
+    width: 8, // Matching reference dot size
+    height: 8,
+    borderRadius: 4,
     backgroundColor: ds.colors.primary,
     shadowColor: ds.colors.primary,
-    shadowOpacity: 0.8,
-    shadowRadius: ds.spacing.sm,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 10, // Reference: shadow 0 0 10px primary
     elevation: 10,
   },
   divider: {
     height: 1,
-    backgroundColor: ds.colors.border,
-    marginVertical: ds.spacing.sm + ds.spacing.xs,
-    marginLeft: ds.spacing.xl + ds.spacing.xs,
+    backgroundColor: ds.colors.border, // Reference: rgba(255, 255, 255, 0.1)
+    marginVertical: 10, // Reference: margin 10px 0
+    marginLeft: 30, // Align with text after dot
   },
   loadingContainer: {
     flex: 1,
@@ -551,16 +557,18 @@ const styles = StyleSheet.create({
   },
   inputStatic: {
     fontFamily: ds.typography.family,
-    fontSize: ds.typography.size.body,
+    fontSize: 16, // Reference: 16px
     color: ds.colors.textSecondary,
     flex: 1,
+    marginLeft: 15, // Gap from dot
   },
   input: {
     fontFamily: ds.typography.family,
-    fontSize: ds.typography.size.body,
+    fontSize: 16, // Reference: 16px
     color: ds.colors.textPrimary,
     flex: 1,
     padding: 0,
+    marginLeft: 15, // Gap from dot
   },
   errorText: {
     fontFamily: ds.typography.family,
@@ -577,8 +585,8 @@ const styles = StyleSheet.create({
     paddingBottom: ds.spacing.lg,
   },
   searchButton: {
-    height: ds.spacing.xxxl + ds.spacing.lg,
-    borderRadius: (ds.spacing.xxxl + ds.spacing.lg) / 2,
+    height: 56, // Reference: 18px padding makes ~56px height
+    borderRadius: 15, // Reference: 15px
   },
   toggleContainer: {
     flexDirection: 'row',
