@@ -1,0 +1,137 @@
+/**
+ * Add Payment Method Screen
+ * Allows riders to add new payment methods
+ */
+
+import React, { useState } from 'react';
+import { View, StyleSheet, SafeAreaView, Pressable, Text } from 'react-native';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { ds } from '@/constants/theme';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { Icon } from '@/components/ui/Icon';
+import PaymentMethodForm from '@/components/payment/PaymentMethodForm';
+import type { PaymentMethodInfo } from '@/api/payment';
+import { useHaptics } from '@/hooks/useHaptics';
+import { useSound } from '@/hooks/useSound';
+import { log } from '@/utils/logger';
+import { useEnhancedAppStore } from '@/store/useEnhancedAppStore';
+
+export default function AddPaymentScreen() {
+  const router = useRouter();
+  const haptics = useHaptics();
+  const sound = useSound();
+  const [isLoading, setIsLoading] = useState(false);
+  const addPaymentMethod = useEnhancedAppStore(state => state.addPaymentMethod);
+
+  const handleSave = async (paymentMethod: PaymentMethodInfo) => {
+    setIsLoading(true);
+    try {
+      await addPaymentMethod(paymentMethod);
+      haptics.trigger('confirm');
+      sound.play('success');
+      log.info('Payment method added successfully', {
+        event: 'payment_method_added',
+        component: 'AddPaymentScreen',
+        type: paymentMethod.type,
+      });
+      router.back();
+    } catch (error) {
+      haptics.trigger('error');
+      sound.play('warning');
+      log.error('Failed to add payment method', {
+        event: 'payment_method_add_failed',
+        component: 'AddPaymentScreen',
+      }, error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    haptics.trigger('tap');
+    sound.play('tapSoft');
+    router.back();
+  };
+
+  return (
+    <View style={styles.container}>
+      <LinearGradient
+        colors={[ds.colors.backgroundDeep, ds.colors.background]}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      <SafeAreaView style={styles.safeArea}>
+        <Animated.View entering={FadeIn.duration(300)} style={styles.content}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Pressable 
+              onPress={handleCancel}
+              style={styles.backButton}
+              accessibilityLabel="Go back"
+              accessibilityRole="button"
+            >
+              <Icon name="chevronRight" size={24} color={ds.colors.textPrimary} style={styles.backIcon} />
+            </Pressable>
+            <Text style={styles.title}>Add Payment Method</Text>
+            <View style={styles.placeholder} />
+          </View>
+
+          {/* Form */}
+          <GlassCard style={styles.formCard}>
+            <PaymentMethodForm
+              onSave={handleSave}
+              onCancel={handleCancel}
+              isLoading={isLoading}
+            />
+          </GlassCard>
+        </Animated.View>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: ds.colors.backgroundDeep,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+    padding: ds.spacing.lg,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: ds.spacing.xl,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: ds.radius.xl,
+    backgroundColor: ds.colors.glass,
+  },
+  backIcon: {
+    transform: [{ rotate: '180deg' }],
+  },
+  title: {
+    fontFamily: ds.typography.family,
+    fontSize: ds.typography.size.title,
+    fontWeight: ds.typography.weight.bold,
+    color: ds.colors.textPrimary,
+  },
+  placeholder: {
+    width: 44,
+  },
+  formCard: {
+    flex: 1,
+    padding: ds.spacing.md,
+  },
+});

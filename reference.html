@@ -1,0 +1,1144 @@
+'use client';
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+//================================================================
+// 1. DESIGN SYSTEM & ASSETS
+//================================================================
+const ds = {
+  colors: {
+    primary: 'rgba(0, 245, 255, 1)', // Cyber Blue
+    secondary: 'rgba(0, 255, 115, 1)', // Neon Green
+    background: '#0A0A0A',
+    surface: 'rgba(22, 22, 22, 0.85)',
+    glass: 'rgba(30, 30, 30, 0.6)',
+    text: '#FFFFFF',
+    textSecondary: 'rgba(255, 255, 255, 0.5)',
+    border: 'rgba(255, 255, 255, 0.08)',
+    activeGlow: '0 0 15px rgba(0, 245, 255, 0.4)',
+    error: '#FF453A',
+  },
+  fonts: {
+    main: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif",
+  },
+  shadows: {
+    soft: '0 10px 40px rgba(0, 0, 0, 0.8)',
+    card: '0 4px 24px rgba(0, 0, 0, 0.4)',
+    glow: '0 0 20px rgba(0, 245, 255, 0.7)',
+  },
+  radius: {
+    lg: '30px',
+    md: '20px',
+    sm: '12px',
+  },
+};
+
+// Animation Variants
+const uiAnimationProps = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 },
+  transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
+};
+
+//================================================================
+// 2. UTILITIES
+//================================================================
+let audioCtx: AudioContext | null = null;
+
+const playSound = (type: 'click' | 'hover' | 'success' | 'error') => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AC) return;
+
+    if (!audioCtx) {
+      audioCtx = new AC();
+    }
+
+    const ctx = audioCtx;
+    if (!ctx) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    const now = ctx.currentTime || 0;
+
+    const configs: Record<
+      string,
+      { freq: number; type: OscillatorType; dur: number; vol: number }
+    > = {
+      click: { freq: 800, type: 'sine', dur: 0.05, vol: 0.05 },
+      hover: { freq: 400, type: 'sine', dur: 0.03, vol: 0.02 },
+      success: { freq: 1200, type: 'triangle', dur: 0.1, vol: 0.08 },
+      error: { freq: 200, type: 'sawtooth', dur: 0.15, vol: 0.08 },
+    };
+
+    const config = configs[type] || configs.click;
+
+    osc.type = config.type;
+    osc.frequency.setValueAtTime(config.freq, now);
+    gain.gain.setValueAtTime(config.vol, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + config.dur);
+
+    osc.start(now);
+    osc.stop(now + config.dur);
+  } catch {
+    // Ignore audio errors
+  }
+};
+
+//================================================================
+// 3. ICONS
+//================================================================
+type IconName =
+  | 'home'
+  | 'activity'
+  | 'location'
+  | 'profile'
+  | 'user'
+  | 'search'
+  | 'menu'
+  | 'chevronRight'
+  | 'settings';
+
+const Icon: React.FC<{
+  name: IconName;
+  size?: number;
+  color?: string;
+  active?: boolean;
+}> = ({ name, size = 24, color = ds.colors.textSecondary, active = false }) => {
+  const activeColor = ds.colors.primary;
+  const finalColor = active ? activeColor : color;
+
+  const icons: Record<IconName, JSX.Element> = {
+    // Home (House shape)
+    home: <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />,
+    // Activity (Chart/Document)
+    activity: (
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" />
+    ),
+    // Location (Map Pin)
+    location: (
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6" />
+    ),
+    // Profile (User)
+    profile: (
+      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8" />
+    ),
+    // Alias for user
+    user: (
+      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8" />
+    ),
+    // UI Icons
+    search: (
+      <path d="M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.35-4.35" />
+    ),
+    menu: <path d="M3 12h18M3 6h18M3 18h18" />, 
+    chevronRight: <path d="M9 18l6-6-6-6" />, 
+    settings: (
+      <path d="M12.22 2h-.44a2 2 0 0 1-2 2.22l-.61.16a2 2 0 0 0-1.26.91l-.29.5a2 2 0 0 0 .46 2.58l.44.38a1 1 0 0 1 0 1.42l-.44.38a2 2 0 0 0-.46 2.58l.29.5a2 2 0 0 0 1.26.91l.61.16a2 2 0 0 1 2 2.22h.44a2 2 0 0 1 2-2.22l.61-.16a2 2 0 0 0 1.26-.91l.29-.5a2 2 0 0 0-.46-2.58l-.44-.38a1 1 0 0 1 0-1.42l.44-.38a2 2 0 0 0 .46-2.58l-.29-.5a2 2 0 0 0-1.26-.91l-.61-.16a2 2 0 0 1-2-2.22zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
+    ),
+  };
+
+  const path = icons[name] || icons.home;
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={finalColor}
+      strokeWidth={active ? 2.5 : 2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{
+        filter: active ? `drop-shadow(0 0 8px ${ds.colors.primary})` : 'none',
+        transition: 'all 0.3s ease',
+      }}
+    >
+      {path}
+    </svg>
+  );
+};
+
+//================================================================
+// 4. 3D GLOBE COMPONENT
+//================================================================
+interface GlobeProps {
+  scriptsLoaded: boolean;
+  onZoomComplete?: () => void;
+  zoomTo: { lat: number; lon: number } | null;
+}
+
+const Globe = React.forwardRef<HTMLCanvasElement, GlobeProps>(
+  ({ scriptsLoaded, onZoomComplete, zoomTo }, forwardedRef) => {
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const zoomFnRef = useRef<((lat: number, lon: number) => void) | null>(null);
+    const frameIdRef = useRef<number | null>(null);
+
+    // Bridge: keep both internal ref and forwarded ref in sync
+    const setCanvasRef = (node: HTMLCanvasElement | null) => {
+      canvasRef.current = node;
+      if (typeof forwardedRef === 'function') {
+        forwardedRef(node);
+      } else if (forwardedRef && 'current' in forwardedRef) {
+        (forwardedRef as React.MutableRefObject<HTMLCanvasElement | null>).current = node;
+      }
+    };
+
+    useEffect(() => {
+      if (!scriptsLoaded) return;
+      if (typeof window === 'undefined') return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const THREE = (window as any).THREE;
+      const gsap = (window as any).gsap;
+      if (!THREE || !gsap) return;
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(
+        45,
+        canvas.clientWidth / canvas.clientHeight,
+        0.1,
+        1000
+      );
+      camera.position.set(0, 0, 18);
+      camera.lookAt(0, 0, 0);
+
+      const renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        alpha: true,
+      });
+      renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+      // Textures
+      const textureLoader = new THREE.TextureLoader();
+      const earthMap = textureLoader.load(
+        'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg'
+      );
+      const earthSpec = textureLoader.load(
+        'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_specular_2048.jpg'
+      );
+      const earthNormal = textureLoader.load(
+        'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_normal_2048.jpg'
+      );
+      const cloudsMap = textureLoader.load(
+        'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_clouds_1024.png'
+      );
+
+      // Earth Mesh
+      const earthGeometry = new THREE.SphereGeometry(5, 64, 64);
+      const earthMaterial = new THREE.MeshPhongMaterial({
+        map: earthMap,
+        specularMap: earthSpec,
+        normalMap: earthNormal,
+        specular: new THREE.Color(0x333333),
+        shininess: 15,
+      });
+      const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+      scene.add(earth);
+
+      // Cloud Mesh
+      const cloudGeometry = new THREE.SphereGeometry(5.1, 64, 64);
+      const cloudMaterial = new THREE.MeshLambertMaterial({
+        map: cloudsMap,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+      });
+      const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+      scene.add(clouds);
+
+      // Atmosphere Glow
+      const atmoGeometry = new THREE.SphereGeometry(5.3, 64, 64);
+      const atmoMaterial = new THREE.ShaderMaterial({
+        vertexShader: `
+          varying vec3 vNormal;
+          void main() {
+            vNormal = normalize(normalMatrix * normal);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          varying vec3 vNormal;
+          void main() {
+            float intensity = pow(0.6 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 4.0);
+            gl_FragColor = vec4(0.0, 0.8, 1.0, 1.0) * intensity;
+          }
+        `,
+        blending: THREE.AdditiveBlending,
+        side: THREE.BackSide,
+        transparent: true,
+      });
+      const atmosphere = new THREE.Mesh(atmoGeometry, atmoMaterial);
+      scene.add(atmosphere);
+
+      // Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+      scene.add(ambientLight);
+      const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+      sunLight.position.set(20, 10, 10);
+      scene.add(sunLight);
+
+      // Starfield
+      const starGeo = new THREE.BufferGeometry();
+      const starCount = 2000;
+      const posArray = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount * 3; i++) {
+        posArray[i] = (Math.random() - 0.5) * 200;
+      }
+      starGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+      const starMat = new THREE.PointsMaterial({
+        size: 0.15,
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.8,
+      });
+      const stars = new THREE.Points(starGeo, starMat);
+      scene.add(stars);
+
+      const animate = () => {
+        frameIdRef.current = requestAnimationFrame(animate);
+        earth.rotation.y += 0.0005;
+        clouds.rotation.y += 0.0006;
+        stars.rotation.y -= 0.0001;
+        renderer.render(scene, camera);
+      };
+      animate();
+
+      const handleResize = () => {
+        if (!canvas) return;
+        const { clientWidth, clientHeight } = canvas;
+        if (!clientWidth || !clientHeight) return;
+        renderer.setSize(clientWidth, clientHeight);
+        camera.aspect = clientWidth / clientHeight;
+        camera.updateProjectionMatrix();
+      };
+
+      window.addEventListener('resize', handleResize);
+
+      const zoomFn = (lat: number, lon: number) => {
+        const phi = (90 - lat) * (Math.PI / 180);
+        const theta = (lon + 180) * (Math.PI / 180);
+        const radius = 9;
+
+        const x = -(radius * Math.sin(phi) * Math.cos(theta));
+        const z = radius * Math.sin(phi) * Math.sin(theta);
+        const y = radius * Math.cos(phi);
+
+        gsap.to(camera.position, {
+          duration: 2.5,
+          x,
+          y,
+          z,
+          ease: 'power2.inOut',
+          onUpdate: () => camera.lookAt(0, 0, 0),
+          onComplete: () => {
+            if (typeof onZoomComplete === 'function') {
+              onZoomComplete();
+            }
+          },
+        });
+      };
+
+      zoomFnRef.current = zoomFn;
+
+      // Expose zoom on the canvas for external control
+      if (canvas) {
+        (canvas as any).zoom = zoomFn;
+      }
+
+      return () => {
+        if (frameIdRef.current != null) {
+          cancelAnimationFrame(frameIdRef.current);
+        }
+        window.removeEventListener('resize', handleResize);
+
+        if (canvas && (canvas as any).zoom === zoomFn) {
+          try {
+            delete (canvas as any).zoom;
+          } catch {
+            (canvas as any).zoom = undefined;
+          }
+        }
+
+        renderer.dispose();
+        earthGeometry.dispose();
+        earthMaterial.dispose();
+        cloudGeometry.dispose();
+        cloudMaterial.dispose();
+        atmoGeometry.dispose();
+        atmoMaterial.dispose();
+        starGeo.dispose();
+        starMat.dispose();
+      };
+    }, [scriptsLoaded, onZoomComplete]);
+
+    // Fire zooms when zoomTo changes and zoomFn is ready
+    useEffect(() => {
+      if (!zoomTo || !zoomFnRef.current) return;
+      zoomFnRef.current(zoomTo.lat, zoomTo.lon);
+    }, [zoomTo]);
+
+    return (
+      <canvas
+        ref={setCanvasRef}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: 0,
+        }}
+      />
+    );
+  }
+);
+
+Globe.displayName = 'Globe';
+
+//================================================================
+// 5. MAP COMPONENT
+//================================================================
+interface DetailedMapProps {
+  lat: number;
+  lon: number;
+  onMapLoad: () => void;
+  scriptsLoaded: boolean;
+}
+
+const DetailedMap: React.FC<DetailedMapProps> = ({ lat, lon, onMapLoad, scriptsLoaded }) => {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!scriptsLoaded) return;
+    if (typeof window === 'undefined') return;
+
+    const maplibre = (window as any).maplibregl;
+    if (!maplibre || !mapContainerRef.current) return;
+
+    const map = new maplibre.Map({
+      container: mapContainerRef.current,
+      style: 'https://demotiles.maplibre.org/style.json', // Free demo style
+      center: [lon, lat],
+      zoom: 15,
+      pitch: 60,
+      bearing: -20,
+      antialias: true,
+      attributionControl: false,
+    });
+
+    map.on('load', () => {
+      try {
+        const source = map.getSource('openmaptiles');
+        if (source && !map.getLayer('building-3d')) {
+          map.addLayer({
+            id: 'building-3d',
+            source: 'openmaptiles',
+            'source-layer': 'building',
+            type: 'fill-extrusion',
+            minzoom: 15,
+            paint: {
+              'fill-extrusion-color': '#222',
+              'fill-extrusion-height': ['get', 'render_height'],
+              'fill-extrusion-base': ['get', 'render_min_height'],
+              'fill-extrusion-opacity': 0.8,
+            },
+          });
+        }
+      } catch (err) {
+        console.warn('3D building layer error', err);
+      }
+
+      onMapLoad();
+    });
+
+    return () => {
+      map.remove();
+    };
+  }, [lat, lon, onMapLoad, scriptsLoaded]);
+
+  return (
+    <div
+      ref={mapContainerRef}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 0,
+        filter: 'brightness(0.8) contrast(1.2)',
+      }}
+    />
+  );
+};
+
+//================================================================
+// 6. SUB-SCREENS & COMPONENTS
+//================================================================
+
+interface HomeScreenProps {
+  onSearch: (term: string) => void;
+  isGeocoding: boolean;
+  errorMsg: string | null;
+}
+
+const HomeScreen: React.FC<HomeScreenProps> = ({ onSearch, isGeocoding, errorMsg }) => {
+  const [destination, setDestination] = useState('');
+
+  return (
+    <motion.div style={styles.contentWrapper} {...uiAnimationProps}>
+      <header style={styles.header}>
+        <div style={styles.welcomeContainer}>
+          <p style={styles.welcomeText}>Good evening,</p>
+          <h1 style={styles.nameText}>Tony Stark</h1>
+        </div>
+        <div style={styles.profileImage}>
+          <Icon name="user" size={24} color="#000" />
+        </div>
+      </header>
+
+      <main style={styles.mainContent}>
+        <div style={styles.glassCard}>
+          <div style={styles.inputRow}>
+            <div style={styles.dotOrigin} />
+            <input
+              type="text"
+              placeholder="Current Location"
+              style={styles.input}
+              readOnly
+            />
+          </div>
+          <div style={styles.divider} />
+          <div style={styles.inputRow}>
+            <div style={styles.dotDest} />
+            <input
+              type="text"
+              placeholder="Where to?"
+              style={styles.input}
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {errorMsg && <p style={styles.errorText}>{errorMsg}</p>}
+
+        <motion.button
+          style={{ ...styles.primaryButton, opacity: destination ? 1 : 0.5 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => onSearch(destination)}
+          disabled={!destination || isGeocoding}
+        >
+          {isGeocoding ? (
+            <span style={styles.loader}>Locating...</span>
+          ) : (
+            'Search Rides'
+          )}
+        </motion.button>
+      </main>
+    </motion.div>
+  );
+};
+
+const RideSelectionScreen: React.FC = () => {
+  const [selected, setSelected] = useState(1);
+
+  const options = [
+    { id: 1, name: 'Aura Lite', time: '3 min', price: '$12.40', icon: '🚗' },
+    { id: 2, name: 'Aura Prime', time: '5 min', price: '$18.90', icon: '🚘' },
+    { id: 3, name: 'Aura Lux', time: '8 min', price: '$28.50', icon: '🚙' },
+  ];
+
+  return (
+    <motion.div
+      style={{ ...styles.contentWrapper, justifyContent: 'flex-end' }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+    >
+      <motion.div
+        style={styles.bottomSheet}
+        initial={{ y: 300 }}
+        animate={{ y: 0 }}
+        transition={{ type: 'spring', damping: 25 }}
+      >
+        <div style={styles.dragHandle} />
+        <h3 style={styles.sheetTitle}>Choose your ride</h3>
+
+        <div style={styles.rideList}>
+          {options.map((opt) => (
+            <motion.div
+              key={opt.id}
+              style={{
+                ...styles.rideOption,
+                borderColor: selected === opt.id ? ds.colors.primary : 'transparent',
+                backgroundColor:
+                  selected === opt.id ? 'rgba(0, 245, 255, 0.05)' : 'transparent',
+              }}
+              onClick={() => {
+                playSound('click');
+                setSelected(opt.id);
+              }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div style={styles.rideIcon}>{opt.icon}</div>
+              <div style={{ flex: 1 }}>
+                <div style={styles.rideName}>{opt.name}</div>
+                <div style={styles.rideTime}>{opt.time} away</div>
+              </div>
+              <div style={styles.ridePrice}>{opt.price}</div>
+            </motion.div>
+          ))}
+        </div>
+
+        <div style={styles.paymentRow}>
+          <div style={styles.paymentMethod}>
+            <div style={styles.cardIcon} />
+            <span>Visa •••• 4242</span>
+          </div>
+          <span style={styles.promoText}>Promo</span>
+        </div>
+
+        <motion.button
+          style={styles.primaryButton}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => playSound('success')}
+        >
+          Confirm {options.find((o) => o.id === selected)?.name}
+        </motion.button>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+const PlaceholderScreen: React.FC<{ title: string }> = ({ title }) => (
+  <motion.div
+    style={{ ...styles.contentWrapper, justifyContent: 'center' }}
+    {...uiAnimationProps}
+  >
+    <h2 style={{ color: ds.colors.textSecondary }}>{title}</h2>
+  </motion.div>
+);
+
+//================================================================
+// 7. MAIN APPLICATION
+//================================================================
+type AppState = 'idle' | 'searching' | 'zooming' | 'map' | 'selection';
+type TabId = 'home' | 'activity' | 'location' | 'profile';
+
+export default function ClientApp() {
+  const [activeTab, setActiveTab] = useState<TabId>('home');
+  const [appState, setAppState] = useState<AppState>('idle');
+  const [scriptsLoaded, setScriptsLoaded] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // --- Asset Loading ---
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    document.title = 'Aura - Ultra Premium';
+
+    const fonts = document.createElement('link');
+    fonts.href =
+      'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap';
+    fonts.rel = 'stylesheet';
+    document.head.appendChild(fonts);
+
+    const mapStyles = document.createElement('link');
+    mapStyles.href = 'https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css';
+    mapStyles.rel = 'stylesheet';
+    document.head.appendChild(mapStyles);
+
+    const loadScript = (src: string) =>
+      new Promise<void>((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error(`Failed to load ${src}`));
+        document.body.appendChild(s);
+      });
+
+    Promise.all([
+      loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'),
+      loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js'),
+      loadScript('https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js'),
+    ])
+      .then(() => {
+        setScriptsLoaded(true);
+      })
+      .catch((e) => console.error('Script load error', e));
+
+    return () => {
+      document.head.removeChild(fonts);
+      document.head.removeChild(mapStyles);
+      // Scripts are left in place; they are harmless on unmount.
+    };
+  }, []);
+
+  // --- Logic ---
+  const handleSearch = async (term: string) => {
+    if (!term) return;
+    setAppState('searching');
+    setErrorMsg(null);
+
+    try {
+      // Simulated geocoding / API call
+      await new Promise((r) => setTimeout(r, 1000));
+      const lat = 42.6977;
+      const lon = 23.3219;
+
+      setCoords({ lat, lon });
+      setAppState('zooming');
+
+      // Trigger 3D zoom
+      const canvas = canvasRef.current as any;
+      if (canvas && typeof canvas.zoom === 'function') {
+        canvas.zoom(lat, lon);
+      }
+    } catch (e) {
+      console.error(e);
+      setErrorMsg('Could not locate address.');
+      setAppState('idle');
+    }
+  };
+
+  const onZoomFinished = useCallback(() => {
+    setAppState('map');
+  }, []);
+
+  const onMapReady = useCallback(() => {
+    // Small delay to ensure map is rendered before showing bottom sheet
+    setTimeout(() => {
+      setAppState('selection');
+    }, 800);
+  }, []);
+
+  // --- Render Helpers ---
+  const renderContent = () => {
+    if (appState === 'selection') {
+      return <RideSelectionScreen />;
+    }
+
+    switch (activeTab) {
+      case 'home':
+        return (
+          <HomeScreen
+            onSearch={handleSearch}
+            isGeocoding={appState === 'searching'}
+            errorMsg={errorMsg}
+          />
+        );
+      case 'activity':
+        return <PlaceholderScreen title="Your Activity" />;
+      case 'location':
+        return <PlaceholderScreen title="Saved Locations" />;
+      case 'profile':
+        return <PlaceholderScreen title="Profile Settings" />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div style={styles.body}>
+      <div style={styles.mobileFrame}>
+        {/* Background Layer: Globe or Map */}
+        <div style={styles.backgroundLayer}>
+          {/* Globe fades out when map appears */}
+          <motion.div
+            style={{ position: 'absolute', inset: 0, zIndex: 1 }}
+            initial={{ opacity: 1 }}
+            animate={{ opacity: appState === 'map' || appState === 'selection' ? 0 : 1 }}
+            transition={{ duration: 0.8 }}
+          >
+            <Globe
+              ref={canvasRef}
+              scriptsLoaded={scriptsLoaded}
+              onZoomComplete={onZoomFinished}
+              zoomTo={coords && appState === 'zooming' ? coords : null}
+            />
+          </motion.div>
+
+          {/* Map fades in */}
+          {(appState === 'map' || appState === 'selection') && coords && (
+            <motion.div
+              style={{ position: 'absolute', inset: 0, zIndex: 2 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8 }}
+            >
+              <DetailedMap
+                lat={coords.lat}
+                lon={coords.lon}
+                scriptsLoaded={scriptsLoaded}
+                onMapLoad={onMapReady}
+              />
+            </motion.div>
+          )}
+        </div>
+
+        {/* UI Overlay */}
+        <div style={styles.uiLayer}>
+          <AnimatePresence mode="wait">
+            {/* Hide main UI during cinematic zoom */}
+            {appState !== 'zooming' && (
+              <motion.div
+                key={activeTab}
+                style={{ width: '100%', height: '100%' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                {renderContent()}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Bottom Navigation Bar */}
+        <div style={styles.navContainer}>
+          <div style={styles.navBar}>
+            <NavButton
+              icon="home"
+              active={activeTab === 'home'}
+              onClick={() => {
+                setActiveTab('home');
+                setAppState('idle');
+              }}
+            />
+            <NavButton
+              icon="activity"
+              active={activeTab === 'activity'}
+              onClick={() => setActiveTab('activity')}
+            />
+            <NavButton
+              icon="location"
+              active={activeTab === 'location'}
+              onClick={() => setActiveTab('location')}
+            />
+            <NavButton
+              icon="profile"
+              active={activeTab === 'profile'}
+              onClick={() => setActiveTab('profile')}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Helper Component for Nav Button
+const NavButton: React.FC<{
+  icon: IconName;
+  active: boolean;
+  onClick: () => void;
+}> = ({ icon, active, onClick }) => (
+  <motion.button
+    style={styles.navButton as React.CSSProperties}
+    onClick={() => {
+      playSound('click');
+      onClick();
+    }}
+    whileHover={{ scale: 1.08 }}
+    whileTap={{ scale: 0.95 }}
+    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+  >
+    <div
+      style={{
+        ...styles.navIconWrapper,
+        color: active ? ds.colors.primary : ds.colors.textSecondary,
+        textShadow: active ? ds.shadows.glow : 'none',
+      }}
+    >
+      <Icon name={icon} active={active} />
+    </div>
+    {active && <motion.div layoutId="navGlow" style={styles.activeIndicator} />}
+  </motion.button>
+);
+
+//================================================================
+// 8. STYLES
+//================================================================
+const styles: Record<string, React.CSSProperties> = {
+  body: {
+    width: '100vw',
+    height: '100vh',
+    background: '#000',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: ds.fonts.main,
+    overflow: 'hidden',
+    color: ds.colors.text,
+  },
+  mobileFrame: {
+    width: '375px',
+    height: '812px',
+    background: ds.colors.background,
+    borderRadius: '40px',
+    position: 'relative',
+    overflow: 'hidden',
+    boxShadow: '0 0 0 10px #1a1a1a, 0 0 50px rgba(0,0,0,0.8)',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  backgroundLayer: {
+    position: 'absolute',
+    inset: 0,
+    zIndex: 0,
+  },
+  uiLayer: {
+    position: 'relative',
+    zIndex: 10,
+    flex: 1,
+    pointerEvents: 'none', // Allow clicks to pass through empty areas
+  },
+  contentWrapper: {
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    pointerEvents: 'auto', // Re-enable clicks for content
+  },
+  header: {
+    padding: '60px 24px 20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  welcomeContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  welcomeText: {
+    fontSize: '14px',
+    color: ds.colors.textSecondary,
+    marginBottom: 4,
+  },
+  nameText: {
+    fontSize: '24px',
+    fontWeight: 600,
+    letterSpacing: '-0.5px',
+  },
+  profileImage: {
+    width: 44,
+    height: 44,
+    borderRadius: '50%',
+    background: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mainContent: {
+    flex: 1,
+    padding: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'flex-end',
+    paddingBottom: '120px',
+  },
+  glassCard: {
+    background: ds.colors.surface,
+    backdropFilter: 'blur(20px)',
+    borderRadius: ds.radius.md,
+    padding: '20px',
+    border: `1px solid ${ds.colors.border}`,
+    marginBottom: '20px',
+  },
+  inputRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '15px',
+    height: '40px',
+  },
+  dotOrigin: {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    background: ds.colors.textSecondary,
+  },
+  dotDest: {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    background: ds.colors.primary,
+    boxShadow: ds.shadows.glow,
+  },
+  divider: {
+    height: 1,
+    background: ds.colors.border,
+    margin: '10px 0 10px 23px',
+  },
+  input: {
+    background: 'transparent',
+    border: 'none',
+    color: '#fff',
+    fontSize: '16px',
+    width: '100%',
+    outline: 'none',
+    fontFamily: ds.fonts.main,
+  },
+  primaryButton: {
+    width: '100%',
+    height: '56px',
+    borderRadius: ds.radius.lg,
+    background: ds.colors.primary,
+    color: '#000',
+    border: 'none',
+    fontSize: '16px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    boxShadow: ds.shadows.glow,
+  },
+  loader: {
+    display: 'inline-block',
+    fontSize: '14px',
+    opacity: 0.9,
+  },
+  navContainer: {
+    position: 'absolute',
+    bottom: 30,
+    left: 0,
+    right: 0,
+    display: 'flex',
+    justifyContent: 'center',
+    zIndex: 100,
+    pointerEvents: 'auto',
+  },
+  navBar: {
+    background: ds.colors.glass,
+    backdropFilter: 'blur(20px)',
+    borderRadius: '100px',
+    padding: '8px 24px',
+    display: 'flex',
+    gap: '32px',
+    border: `1px solid ${ds.colors.border}`,
+    boxShadow: ds.shadows.soft,
+  },
+  navButton: {
+    background: 'none',
+    border: 'none',
+    padding: '12px',
+    position: 'relative',
+    cursor: 'pointer',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  navIconWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'transform 0.2s ease, color 0.2s ease, text-shadow 0.2s ease',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    width: 4,
+    height: 4,
+    background: ds.colors.primary,
+    borderRadius: '50%',
+    boxShadow: ds.shadows.glow,
+  },
+  // Ride Selection Styles
+  bottomSheet: {
+    background: ds.colors.surface,
+    backdropFilter: 'blur(30px)',
+    borderTopLeftRadius: ds.radius.lg,
+    borderTopRightRadius: ds.radius.lg,
+    padding: '24px',
+    borderTop: `1px solid ${ds.colors.border}`,
+    boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    background: 'rgba(255,255,255,0.2)',
+    borderRadius: 2,
+    margin: '0 auto 24px',
+  },
+  sheetTitle: {
+    fontSize: '18px',
+    fontWeight: 600,
+    marginBottom: '20px',
+  },
+  rideList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    marginBottom: '24px',
+  },
+  rideOption: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '16px',
+    borderRadius: ds.radius.sm,
+    border: '1px solid transparent',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  rideIcon: {
+    fontSize: '24px',
+    marginRight: '16px',
+  },
+  rideName: {
+    fontSize: '16px',
+    fontWeight: 500,
+  },
+  rideTime: {
+    fontSize: '12px',
+    color: ds.colors.textSecondary,
+  },
+  ridePrice: {
+    fontSize: '16px',
+    fontWeight: 600,
+  },
+  paymentRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '24px',
+    padding: '0 4px',
+  },
+  paymentMethod: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '14px',
+  },
+  cardIcon: {
+    width: 24,
+    height: 16,
+    background: '#fff',
+    borderRadius: 2,
+  },
+  promoText: {
+    color: ds.colors.primary,
+    fontSize: '14px',
+    fontWeight: 500,
+  },
+  errorText: {
+    color: ds.colors.error,
+    textAlign: 'center',
+    marginBottom: '15px',
+    fontSize: '13px',
+  },
+};

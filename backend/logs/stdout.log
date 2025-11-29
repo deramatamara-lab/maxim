@@ -1,0 +1,6 @@
+info: Aura Backend Server running on port 3001 {"timestamp":"2025-11-28T03:03:14.995Z"}
+info: Environment: development {"timestamp":"2025-11-28T03:03:14.996Z"}
+info: Health check: http://localhost:3001/health {"timestamp":"2025-11-28T03:03:14.996Z"}
+{"email":"test@example.com","level":"info","message":"User registered successfully","type":"rider","userId":1}
+{"email":"test@example.com","hasPassword":true,"level":"info","message":"Login attempt"}
+{"email":"test@example.com","level":"info","message":"User logged in successfully","userId":1}

@@ -1,0 +1,6 @@
+nohup: ignoring input
+info: Aura Backend Server running on port 3002 {"timestamp":"2025-11-28T02:22:38.801Z"}
+info: Environment: development {"timestamp":"2025-11-28T02:22:38.803Z"}
+info: Health check: http://localhost:3002/health {"timestamp":"2025-11-28T02:22:38.803Z"}
+{"email":"test@example.com","level":"info","message":"User registered successfully","type":"rider","userId":1}
+{"email":"test@example.com","level":"info","message":"User logged in successfully","userId":1}

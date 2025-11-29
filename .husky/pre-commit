@@ -1,0 +1,36 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit checks..."
+
+# Run type check
+echo "📝 Type checking..."
+pnpm run lint:types || {
+  echo "❌ Type check failed. Fix TypeScript errors before committing."
+  exit 1
+}
+
+# Run linter
+echo "🔧 Linting..."
+pnpm run lint --max-warnings 0 || {
+  echo "❌ Lint failed. Fix linting errors before committing."
+  exit 1
+}
+
+# Check for console statements
+echo "🚫 Checking for console statements..."
+if git diff --cached --name-only | grep -E '\.(ts|tsx)$' | xargs grep -l "console\.\(log\|debug\|info\)" 2>/dev/null; then
+  echo "❌ Found console.log/debug/info statements in staged files."
+  echo "   Use structured logger (import { log } from '@/utils/logger') instead."
+  exit 1
+fi
+
+# Check for secrets
+echo "🔐 Checking for secrets..."
+if git diff --cached | grep -E "sk_live_|pk_live_|api_key.*=.*['\"][a-zA-Z0-9]{20,}"; then
+  echo "❌ Found potential secrets in staged changes."
+  echo "   Never commit API keys or secrets."
+  exit 1
+fi
+
+echo "✅ All pre-commit checks passed!"

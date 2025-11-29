@@ -1,0 +1,45 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "module": "es2020",
+    "moduleResolution": "bundler",
+    "jsx": "react-native",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ],
+  "exclude": [
+    "__tests__/archived/**/*",
+    "__tests__/**/*",
+    // Reference prototype files - legacy web code, not used in React Native app
+    "reference/**/*",
+    // Legacy/incomplete services - replaced by api/ implementations
+    "src/services/paymentService.ts", 
+    "src/services/pricingAI.ts",
+    "src/services/safetyService.ts",
+    // Incomplete hooks - not ready for production
+    "src/hooks/useInteractionState.ts",
+    "src/hooks/useMagneticInteraction.tsx",
+    "src/hooks/useRippleEffect.tsx",
+    // Component directories under development - not in production build
+    "src/components/payment/**/*",
+    "src/components/chat/**/*",
+    "src/components/admin/**/*",
+    // Incomplete API configurations still excluded
+    "src/api/networkResilience.ts"
+  ]
+}

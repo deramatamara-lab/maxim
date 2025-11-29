@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"testing.automaticallyOpenTestResults": "neverOpen",
+		"jest.outputConfig": {
+			"revealOn": "run",
+			"revealWithFocus": "none",
+			"clearOnRun": "none"
+		}
+	}
+}

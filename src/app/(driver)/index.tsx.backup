@@ -1,0 +1,1467 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  StatusBar,
+  Pressable,
+  Linking,
+  Platform,
+  Alert,
+} from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { ds } from '../../constants/theme';
+import { GlassView } from '../../components/ui/GlassView';
+import { PremiumButton } from '../../components/ui/PremiumButton';
+import { CircularProgress } from '../../components/ui/CircularProgress';
+import { CustomIcon } from '../../components/ui/CustomIcon';
+import { ProfileAvatar } from '../../components/ui/ProfileAvatar';
+import { useEnhancedDriverState } from '../../store/useEnhancedAppStore';
+import { useHaptics } from '@/hooks/useHaptics';
+import { useSound } from '@/hooks/useSound';
+import { useDriverLocationTracking } from '@/hooks/useDriverLocationTracking';
+import { useRouter } from 'expo-router';
+import { log } from '@/utils/logger';
+// Analytics imports removed as unused
+// Analytics types removed as unused
+import { SleekNav } from '../../components/ui/SleekNav';
+import { TabId } from '../../store/useAppStore';
+
+export default function DriverScreen() {
+  const {
+    driverState,
+    currentRequest,
+    countdownRemaining,
+    toggleDriverOnline,
+    acceptRideRequest,
+    rejectRideRequest,
+    completeRide: _completeRide,
+    cancelRide: _cancelRide,
+    startNavigation: _startNavigation,
+    simulateIncomingRequest,
+    // NEW: Analytics state
+    driverAnalytics: _driverAnalytics,
+    analyticsPeriod,
+    isLoadingAnalytics: _isLoadingAnalytics,
+    analyticsError: _analyticsError,
+    fetchAnalytics,
+    setAnalyticsPeriod: _setAnalyticsPeriod,
+    // NEW: Driver Earnings
+    driverEarnings,
+    _earningsHistory,
+    isLoadingEarnings,
+    earningsError,
+    fetchEarnings,
+    refreshEarnings,
+    // NEW: Driver Navigation
+    currentRide,
+    currentRoute,
+    isLoadingRoute,
+    routeError,
+    getRoute,
+    // NEW: Driver Completion
+    updateRideStatus,
+    completeRidePayment,
+    addTip,
+  } = useEnhancedDriverState();
+  
+  const haptics = useHaptics();
+  const sound = useSound();
+  const router = useRouter();
+  
+  // NEW: Real-time location tracking
+  const { locationState, metrics, isTrackingActive } = useDriverLocationTracking();
+  
+  const [activeTab, setActiveTab] = useState<TabId>('home');
+  const [earningsPeriod, setEarningsPeriod] = useState<'today' | 'week' | 'month'>('today');
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [tipAmount, setTipAmount] = useState(0);
+  const [riderRating, setRiderRating] = useState(0);
+  const [isCompletingRide, setIsCompletingRide] = useState(false);
+  
+  // Navigate to detailed earnings dashboard
+  const navigateToEarnings = () => {
+    haptics.trigger('tap');
+    sound.play('tapSoft');
+    router.push('/(driver)/earnings');
+  };
+
+  // Fetch earnings on component mount and when period changes
+  useEffect(() => {
+    fetchEarnings(earningsPeriod);
+  }, [earningsPeriod, fetchEarnings]);
+
+  // NEW: Fetch analytics on component mount and when period changes
+  useEffect(() => {
+    fetchAnalytics(analyticsPeriod);
+  }, [fetchAnalytics, analyticsPeriod]);
+  
+  // NEW: Auto-fetch route when ride is accepted
+  useEffect(() => {
+    if (currentRide && driverState === 'accepted' && !currentRoute && !isLoadingRoute) {
+      getRoute(currentRide.pickupLocation, currentRide.dropoffLocation);
+    }
+  }, [currentRide, driverState, currentRoute, isLoadingRoute, getRoute]);
+  
+  // Animation values for stats cards
+  const statsScale = useSharedValue(1);
+  const modalOpacity = useSharedValue(0);
+  const modalScale = useSharedValue(0.8);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (driverState === 'incoming_request' && countdownRemaining > 0) {
+      // Countdown logic is handled by the enhanced store
+    }
+    
+    if (countdownRemaining === 0 && driverState === 'incoming_request') {
+      // Auto-reject when countdown hits 0
+      rejectRideRequest();
+    }
+  }, [driverState, countdownRemaining, rejectRideRequest]);
+
+  // Modal animations with spring physics
+  useEffect(() => {
+    if (driverState === 'incoming_request' || driverState === 'countdown') {
+      modalOpacity.value = withSpring(1, { damping: 15, stiffness: 300 });
+      modalScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+    } else {
+      modalOpacity.value = withSpring(0, { damping: 15, stiffness: 300 });
+      modalScale.value = withSpring(0.8, { damping: 15, stiffness: 300 });
+    }
+  }, [driverState, modalOpacity, modalScale]);
+
+  // Stats card press handler
+  const handleStatsPress = useCallback(() => {
+    haptics.trigger('selection');
+    sound.play('tapSoft');
+    statsScale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
+    setTimeout(() => {
+      statsScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+    }, 100);
+  }, [haptics, sound, statsScale]);
+
+  const statsAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: statsScale.value }],
+  }));
+
+  const handleToggleOnline = useCallback(() => {
+    haptics.trigger('confirm');
+    sound.play('power');
+    
+    // Heavy haptic for going online
+    if (driverState === 'offline') {
+      haptics.trigger('heavy');
+    }
+    
+    toggleDriverOnline();
+    
+    // Simulate incoming request after 3 seconds if going online
+    if (driverState === 'offline') {
+      setTimeout(() => {
+        simulateIncomingRequest();
+        haptics.trigger('heavy');
+        sound.play('warning');
+      }, 3000);
+    }
+  }, [driverState, haptics, sound, toggleDriverOnline, simulateIncomingRequest]);
+
+  const handleAcceptRequest = useCallback(() => {
+    haptics.trigger('confirm');
+    sound.play('success');
+    acceptRideRequest(currentRequest?.id || '');
+  }, [haptics, sound, acceptRideRequest, currentRequest]);
+
+  const handleRejectRequest = useCallback(() => {
+    haptics.trigger('selection');
+    sound.play('tapSoft');
+    rejectRideRequest();
+  }, [haptics, sound, rejectRideRequest]);
+
+  // NEW: Completion handlers
+  const handleCompleteRide = useCallback(() => {
+    haptics.trigger('confirm');
+    sound.play('success');
+    setShowCompletionModal(true);
+  }, [haptics, sound]);
+
+  const handleSubmitCompletion = useCallback(async () => {
+    if (!currentRide) return;
+    
+    setIsCompletingRide(true);
+    try {
+      // Update ride status to completed
+      const statusUpdated = updateRideStatus('completed');
+      if (!statusUpdated) {
+        throw new Error('Failed to update ride status');
+      }
+
+      // Process payment with tip
+      const paymentResponse = await completeRidePayment(
+        currentRide.id,
+        currentRide.price + tipAmount,
+        tipAmount,
+        currentRide.paymentMethodId
+      );
+
+      if (!paymentResponse.success) {
+        throw new Error(paymentResponse.error || 'Payment failed');
+      }
+
+      // Add tip if specified
+      if (tipAmount > 0) {
+        await addTip(currentRide.id, tipAmount);
+      }
+
+      haptics.trigger('heavy');
+      sound.play('power');
+      setShowCompletionModal(false);
+      setTipAmount(0);
+      setRiderRating(0);
+      
+      // Refresh earnings after completion
+      fetchEarnings(earningsPeriod);
+    } catch (error) {
+      log.error('Ride completion failed', { event: 'ride_completion_failed', component: 'driverIndex' }, error);
+      haptics.trigger('error');
+      sound.play('warning');
+    } finally {
+      setIsCompletingRide(false);
+    }
+  }, [
+    currentRide,
+    tipAmount,
+    earningsPeriod,
+    updateRideStatus,
+    completeRidePayment,
+    addTip,
+    fetchEarnings,
+    haptics,
+    sound,
+  ]);
+
+  const modalAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: modalOpacity.value,
+    transform: [{ scale: modalScale.value }],
+  }));
+
+  const isOnline = driverState !== 'offline';
+  const progress = countdownRemaining > 0 ? countdownRemaining / 30 : 0;
+
+  return (
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
+      {/* Background gradient */}
+      <LinearGradient
+        colors={[ds.colors.backgroundDeep, ds.colors.background]}
+        style={styles.backgroundLayer}
+      />
+
+      {/* Main content */}
+      <View style={styles.mobileFrame}>
+        <View style={styles.header}>
+          <View style={styles.welcomeContainer}>
+            <Text style={styles.welcomeText}>Driver Mode</Text>
+            <Text style={styles.nameText}>Tony Stark</Text>
+            <Text style={[styles.statusText, isOnline && styles.onlineText]}>
+              {isOnline ? 'Online' : 'Offline'}
+            </Text>
+          </View>
+          <View style={styles.headerActions}>
+            <View style={styles.profileAvatar}>
+              <ProfileAvatar />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.mainContent}>
+          {/* Online Toggle Button */}
+          <GlassView elevated={true} intensity="medium" tint="dark" style={styles.toggleCard}>
+            <PremiumButton
+              onPress={handleToggleOnline}
+              variant={isOnline ? 'secondary' : 'primary'}
+              size="lg"
+              style={styles.toggleButton}
+              accessibilityLabel={isOnline ? 'Go Offline' : 'Go Online'}
+              accessibilityHint={isOnline ? 'Stop accepting ride requests' : 'Start accepting ride requests'}
+              accessibilityRole="button"
+            >
+              <View style={styles.toggleContent}>
+                <CustomIcon 
+                  name={isOnline ? 'location' : 'home'} 
+                  size={24} 
+                  color={ds.colors.textPrimary} 
+                />
+                <Text style={styles.toggleText}>
+                  {isOnline ? 'Go Offline' : 'Go Online'}
+                </Text>
+              </View>
+            </PremiumButton>
+          </GlassView>
+
+          {/* Status Card */}
+          {isOnline && (
+            <GlassView elevated={true} intensity="medium" tint="dark" style={styles.statusCard}>
+              <View style={styles.statusRow}>
+                <CustomIcon name="activity" size={20} />
+                <Text style={styles.statusTextLarge}>
+                  {driverState === 'online' ? 'Waiting for requests...' : 
+                   driverState === 'incoming_request' ? 'Incoming Request!' :
+                   driverState === 'countdown' ? 'Accepting...' :
+                   driverState === 'accepted' ? 'Ride Accepted!' : 'Offline'}
+                </Text>
+              </View>
+            </GlassView>
+          )}
+
+          {/* NEW: Earnings Cards */}
+          {isOnline && (
+            <GlassView elevated={true} intensity="medium" tint="dark" style={styles.earningsCard}>
+              <View style={styles.earningsHeader}>
+                <Text style={styles.earningsTitle}>Earnings</Text>
+                <PremiumButton
+                  variant="ghost"
+                  size="sm"
+                  onPress={navigateToEarnings}
+                  style={styles.viewDetailsButton}
+                >
+                  View Details
+                </PremiumButton>
+              </View>
+              <View style={styles.periodSelector}>
+                  {(['today', 'week', 'month'] as const).map((period) => (
+                    <Pressable
+                      key={period}
+                      style={[
+                        styles.periodButton,
+                        earningsPeriod === period && styles.periodButtonActive,
+                      ]}
+                      onPress={() => {
+                        haptics.trigger('selection');
+                        sound.play('tapSoft');
+                        setEarningsPeriod(period);
+                      }}
+                    >
+                      <Text style={[
+                        styles.periodButtonText,
+                        earningsPeriod === period && styles.periodButtonTextActive,
+                      ]}>
+                        {period.charAt(0).toUpperCase() + period.slice(1)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+              
+              {isLoadingEarnings ? (
+                <View style={styles.earningsLoading}>
+                  <Text style={styles.loadingText}>Loading earnings...</Text>
+                </View>
+              ) : earningsError ? (
+                <View style={styles.earningsError}>
+                  <Text style={styles.errorText}>{earningsError}</Text>
+                  <PremiumButton
+                    onPress={() => refreshEarnings()}
+                    variant="ghost"
+                    size="sm"
+                  >
+                    Retry
+                  </PremiumButton>
+                </View>
+              ) : (
+                <View style={styles.earningsContent}>
+                  <View style={styles.earningsMain}>
+                    <Text style={styles.earningsAmount}>
+                      ${driverEarnings.netEarnings.toFixed(2)}
+                    </Text>
+                    <Text style={styles.earningsLabel}>Net Earnings</Text>
+                  </View>
+                  
+                  <View style={styles.earningsBreakdown}>
+                    <View style={styles.earningsItem}>
+                      <Text style={styles.earningsItemValue}>
+                        ${driverEarnings.totalEarnings.toFixed(2)}
+                      </Text>
+                      <Text style={styles.earningsItemLabel}>Total</Text>
+                    </View>
+                    <View style={styles.earningsItem}>
+                      <Text style={styles.earningsItemValue}>
+                        ${driverEarnings.surgeEarnings.toFixed(2)}
+                      </Text>
+                      <Text style={styles.earningsItemLabel}>Surge</Text>
+                    </View>
+                    <View style={styles.earningsItem}>
+                      <Text style={styles.earningsItemValue}>
+                        ${driverEarnings.tips.toFixed(2)}
+                      </Text>
+                      <Text style={styles.earningsItemLabel}>Tips</Text>
+                    </View>
+                    <View style={styles.earningsItem}>
+                      <Text style={styles.earningsItemValue}>
+                        {driverEarnings.totalRides}
+                      </Text>
+                      <Text style={styles.earningsItemLabel}>Rides</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </GlassView>
+          )}
+
+          {/* NEW: Active Ride Navigation */}
+          {currentRide && driverState === 'accepted' && (
+            <GlassView elevated={true} intensity="medium" tint="dark" style={styles.navigationCard}>
+              <View style={styles.navigationHeader}>
+                <Text style={styles.navigationTitle}>Navigation Active</Text>
+                <Text style={styles.etaText}>
+                  ETA: {currentRide.tracking?.estimatedArrival ? 
+                    `${Math.round(currentRide.tracking.estimatedArrival / 60)} min` : 
+                    'Calculating...'}
+                </Text>
+              </View>
+              
+              {isLoadingRoute ? (
+                <View style={styles.navigationLoading}>
+                  <Text style={styles.loadingText}>Loading route...</Text>
+                </View>
+              ) : routeError ? (
+                <View style={styles.navigationError}>
+                  <Text style={styles.errorText}>{routeError}</Text>
+                  <PremiumButton
+                    onPress={() => currentRide && getRoute(
+                      currentRide.pickupLocation,
+                      currentRide.dropoffLocation
+                    )}
+                    variant="ghost"
+                    size="sm"
+                  >
+                    Retry
+                  </PremiumButton>
+                </View>
+              ) : (
+                <View style={styles.navigationContent}>
+                  {/* NEW: Real-time Location Status */}
+                  <View style={styles.locationStatus}>
+                    <View style={[
+                      styles.statusIndicator,
+                      isTrackingActive ? styles.statusActive : styles.statusInactive
+                    ]} />
+                    <Text style={styles.locationStatusText}>
+                      {isTrackingActive ? 'Live Tracking Active' : 'Tracking Inactive'}
+                    </Text>
+                    {locationState.accuracy && (
+                      <Text style={styles.accuracyText}>
+                        ±{Math.round(locationState.accuracy)}m
+                      </Text>
+                    )}
+                  </View>
+                  
+                  <View style={styles.routeInfo}>
+                    <View style={styles.routePoint}>
+                      <CustomIcon name="location" size={16} color={ds.colors.primary} />
+                      <Text style={styles.routeAddress}>{currentRide.pickup.address}</Text>
+                    </View>
+                    <View style={styles.routePoint}>
+                      <CustomIcon name="location" size={16} color={ds.colors.secondary} />
+                      <Text style={styles.routeAddress}>{currentRide.destination.address}</Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.navigationStats}>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>
+                        {currentRide.distance.toFixed(1)} km
+                      </Text>
+                      <Text style={styles.statLabel}>Distance</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>
+                        {currentRide.duration} min
+                      </Text>
+                      <Text style={styles.statLabel}>Duration</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>
+                        ${currentRide.price.toFixed(2)}
+                      </Text>
+                      <Text style={styles.statLabel}>Fare</Text>
+                    </View>
+                  </View>
+                  
+                  {/* NEW: Real-time Speed and Heading */}
+                  {locationState.speed !== null && (
+                    <View style={styles.realtimeStats}>
+                      <View style={styles.speedItem}>
+                        <CustomIcon name="activity" size={16} color={ds.colors.primary} />
+                        <Text style={styles.speedText}>
+                          {Math.round(locationState.speed * 3.6)} km/h
+                        </Text>
+                      </View>
+                      {locationState.heading !== null && (
+                        <View style={styles.headingItem}>
+                          <CustomIcon name="location" size={16} color={ds.colors.secondary} />
+                          <Text style={styles.headingText}>
+                            {Math.round(locationState.heading)}°
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.distanceItem}>
+                        <CustomIcon name="search" size={16} color={ds.colors.textSecondary} />
+                        <Text style={styles.distanceText}>
+                          {(metrics.distanceTraveled / 1000).toFixed(2)} km
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                  
+                  <PremiumButton
+                    onPress={async () => {
+                      haptics.trigger('confirm');
+                      sound.play('tapSoft');
+                      
+                      // Launch navigation app with pickup location
+                      const pickupLocation = currentRide?.pickupLocation;
+                      const pickupAddress = currentRide?.pickup?.address || 'Pickup Location';
+                      if (pickupLocation?.lat && pickupLocation?.lon) {
+                        const lat = pickupLocation.lat;
+                        const lon = pickupLocation.lon;
+                        const label = encodeURIComponent(pickupAddress);
+                        
+                        // Try platform-specific navigation apps
+                        let url: string;
+                        if (Platform.OS === 'ios') {
+                          // Try Apple Maps first, fallback to Google Maps
+                          url = `maps:?daddr=${lat},${lon}&dirflg=d`;
+                        } else {
+                          // Android: Try Google Maps
+                          url = `google.navigation:q=${lat},${lon}`;
+                        }
+                        
+                        try {
+                          const canOpen = await Linking.canOpenURL(url);
+                          if (canOpen) {
+                            await Linking.openURL(url);
+                          } else {
+                            // Fallback to web Google Maps
+                            await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&destination_place_id=${label}`);
+                          }
+                        } catch (error) {
+                          log.error('Failed to open navigation', { event: 'navigation_open_failed', component: 'driverIndex' }, error);
+                          Alert.alert('Navigation Error', 'Could not open navigation app. Please check your location settings.');
+                        }
+                      } else {
+                        Alert.alert('No Location', 'Pickup location not available');
+                      }
+                    }}
+                    variant="primary"
+                    size="md"
+                    style={styles.navigateButton}
+                  >
+                    <View style={styles.navigateContent}>
+                      <CustomIcon name="location" size={20} color={ds.colors.textPrimary} />
+                      <Text style={styles.navigateText}>Start Navigation</Text>
+                    </View>
+                  </PremiumButton>
+                </View>
+              )}
+            </GlassView>
+          )}
+
+          {/* NEW: Ride Completion Button */}
+          {currentRide && driverState === 'accepted' && (
+            <GlassView elevated={true} intensity="medium" tint="dark" style={styles.completionCard}>
+              <PremiumButton
+                onPress={handleCompleteRide}
+                variant="primary"
+                size="lg"
+                style={styles.completeRideButton}
+                accessibilityLabel="Complete Ride"
+                accessibilityHint="Mark the current ride as completed and collect payment"
+                accessibilityRole="button"
+              >
+                <View style={styles.completeRideContent}>
+                  <CustomIcon name="settings" size={24} color={ds.colors.textPrimary} />
+                  <Text style={styles.completeRideText}>Complete Ride</Text>
+                </View>
+              </PremiumButton>
+            </GlassView>
+          )}
+
+          {/* NEW: Completion Modal */}
+          {showCompletionModal && (
+            <Animated.View style={[styles.completionModal, modalAnimatedStyle]}>
+              <GlassView elevated={true} intensity="high" tint="dark" style={styles.completionModalCard}>
+                <View style={styles.completionHeader}>
+                  <Text style={styles.completionTitle}>Complete Ride</Text>
+                  <Pressable
+                    onPress={() => {
+                      haptics.trigger('selection');
+                      sound.play('tapSoft');
+                      setShowCompletionModal(false);
+                    }}
+                    style={styles.closeButton}
+                  >
+                    <CustomIcon name="chevronRight" size={20} color={ds.colors.textSecondary} />
+                  </Pressable>
+                </View>
+
+                {currentRide && (
+                  <View style={styles.completionContent}>
+                    <View style={styles.rideSummary}>
+                      <Text style={styles.summaryLabel}>Total Fare</Text>
+                      <Text style={styles.summaryValue}>
+                        ${(currentRide.price + tipAmount).toFixed(2)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.tipSection}>
+                      <Text style={styles.tipTitle}>Add Tip</Text>
+                      <View style={styles.tipButtons} accessibilityRole="radiogroup" accessibilityLabel="Tip amount selection">
+                        {[0, 2, 5, 10].map((amount) => (
+                          <Pressable
+                            key={amount}
+                            style={[
+                              styles.tipButton,
+                              tipAmount === amount && styles.tipButtonActive,
+                            ]}
+                            onPress={() => {
+                              haptics.trigger('selection');
+                              sound.play('tapSoft');
+                              setTipAmount(amount);
+                            }}
+                            accessibilityLabel={amount === 0 ? 'No tip' : `$${amount} tip`}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: tipAmount === amount }}
+                          >
+                            <Text style={[
+                              styles.tipButtonText,
+                              tipAmount === amount && styles.tipButtonTextActive,
+                            ]}>
+                              ${amount}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+
+                    <View style={styles.ratingSection}>
+                      <Text style={styles.ratingTitle}>Rate Rider</Text>
+                      <View style={styles.ratingStars} accessibilityRole="radiogroup" accessibilityLabel="Rider rating selection">
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                          <Pressable
+                            key={rating}
+                            onPress={() => {
+                              haptics.trigger('selection');
+                              sound.play('tapSoft');
+                              setRiderRating(rating);
+                            }}
+                            accessibilityLabel={`${rating} star${rating > 1 ? 's' : ''}`}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: riderRating === rating }}
+                          >
+                            <CustomIcon
+                              name={rating <= riderRating ? 'check' : 'eye'}
+                              size={24}
+                              color={rating <= riderRating ? ds.colors.primary : ds.colors.textSecondary}
+                            />
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+
+                    <PremiumButton
+                      onPress={handleSubmitCompletion}
+                      variant="primary"
+                      size="lg"
+                      loading={isCompletingRide}
+                      disabled={isCompletingRide}
+                      style={styles.submitButton}
+                    >
+                      <Text style={styles.submitButtonText}>
+                        {isCompletingRide ? 'Processing...' : 'Complete & Payment'}
+                      </Text>
+                    </PremiumButton>
+                  </View>
+                )}
+              </GlassView>
+            </Animated.View>
+          )}
+
+          {/* Stats Cards */}
+          <Animated.View style={[styles.statsContainer, statsAnimatedStyle]}>
+            <Pressable onPress={handleStatsPress} style={styles.statPressable}>
+              <GlassView intensity="medium" tint="dark" style={styles.statCard}>
+                <Text style={styles.statValue}>12</Text>
+                <Text style={styles.statLabel}>Trips Today</Text>
+              </GlassView>
+            </Pressable>
+            <Pressable onPress={handleStatsPress} style={styles.statPressable}>
+              <GlassView intensity="medium" tint="dark" style={styles.statCard}>
+                <Text style={styles.statValue}>186.50</Text>
+                <Text style={styles.statLabel}>BGN Earned</Text>
+              </GlassView>
+            </Pressable>
+            <Pressable onPress={handleStatsPress} style={styles.statPressable}>
+              <GlassView intensity="medium" tint="dark" style={styles.statCard}>
+                <Text style={styles.statValue}>4.9</Text>
+                <Text style={styles.statLabel}>Rating</Text>
+              </GlassView>
+            </Pressable>
+          </Animated.View>
+        </View>
+
+        {/* Navigation */}
+        <View style={styles.tabBarContainer}>
+          <SleekNav activeTab={activeTab} onTabChange={setActiveTab} />
+        </View>
+      </View>
+
+      {/* Request Modal */}
+      {(driverState === 'incoming_request' || driverState === 'countdown') && currentRequest && (
+        <Animated.View style={[styles.modalOverlay, modalAnimatedStyle]}>
+          <BlurView intensity={50} style={styles.modalBlur} tint="dark">
+            <GlassView elevated={true} intensity="high" tint="dark" style={styles.requestModal}>
+              <View style={styles.requestHeader}>
+                <View style={styles.riderInfo}>
+                  <View style={styles.riderAvatar}>
+                    <Text style={styles.riderInitials}>
+                      {currentRequest.riderName.split(' ').map(n => n[0]).join('')}
+                    </Text>
+                  </View>
+                  <View>
+                    <Text style={styles.riderName}>{currentRequest.riderName}</Text>
+                    <Text style={styles.requestTime}>Request • Now</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.routeInfo}>
+                <View style={styles.routePoint}>
+                  <View style={[styles.dot, styles.dotPickup]} />
+                  <Text style={styles.routeText}>{currentRequest.pickupAddress}</Text>
+                </View>
+                <View style={styles.routePoint}>
+                  <View style={[styles.dot, styles.dotDropoff]} />
+                  <Text style={styles.routeText}>{currentRequest.dropoffAddress}</Text>
+                </View>
+              </View>
+
+              <View style={styles.tripDetails}>
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailValue}>{currentRequest.estimatedPrice}</Text>
+                  <Text style={styles.detailLabel}>Est. Price</Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailValue}>{currentRequest.estimatedTime}</Text>
+                  <Text style={styles.detailLabel}>Est. Time</Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailValue}>{currentRequest.distance}</Text>
+                  <Text style={styles.detailLabel}>Distance</Text>
+                </View>
+              </View>
+
+              {/* Countdown Timer */}
+              <View style={styles.countdownContainer}>
+                <CircularProgress
+                  size={80}
+                  strokeWidth={6}
+                  progress={progress}
+                  color={ds.colors.primary}
+                  backgroundColor={ds.colors.surfaceElevated}
+                  duration={1000}
+                >
+                  <Text style={styles.countdownText}>{countdownRemaining}</Text>
+                </CircularProgress>
+              </View>
+
+              <View style={styles.actionButtons}>
+                <PremiumButton
+                  onPress={handleRejectRequest}
+                  variant="ghost"
+                  size="md"
+                  style={styles.rejectButton}
+                >
+                  <Text style={styles.rejectText}>Decline</Text>
+                </PremiumButton>
+                <PremiumButton
+                  onPress={handleAcceptRequest}
+                  variant="primary"
+                  size="md"
+                  style={styles.acceptButton}
+                >
+                  <Text style={styles.acceptText}>Accept</Text>
+                </PremiumButton>
+              </View>
+            </GlassView>
+          </BlurView>
+        </Animated.View>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: ds.colors.backgroundDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: ds.typography.family,
+  },
+  backgroundLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+  },
+  mobileFrame: {
+    width: 375,
+    height: 812,
+    backgroundColor: 'transparent',
+    borderRadius: 40,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: 'transparent',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  welcomeContainer: {
+    flex: 1,
+  },
+  welcomeText: {
+    fontSize: 14,
+    color: ds.colors.textSecondary,
+    fontFamily: ds.typography.family,
+    marginBottom: 4,
+  },
+  nameText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: ds.colors.textPrimary,
+    fontFamily: ds.typography.family,
+    marginBottom: 4,
+  },
+  statusText: {
+    fontSize: 16,
+    color: ds.colors.textSecondary,
+    fontFamily: ds.typography.family,
+  },
+  onlineText: {
+    color: ds.colors.success,
+  },
+  profileAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: ds.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: ds.colors.border,
+  },
+  mainContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 120,
+    justifyContent: 'flex-start',
+    paddingTop: 40,
+  },
+  toggleCard: {
+    marginBottom: 24,
+    paddingVertical: 24,
+  },
+  toggleButton: {
+    height: 64,
+    borderRadius: 32,
+  },
+  toggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  toggleText: {
+    fontFamily: ds.typography.family,
+    fontSize: 18,
+    fontWeight: '600',
+    color: ds.colors.textPrimary,
+  },
+  statusCard: {
+    marginBottom: 24,
+    paddingVertical: 20,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusTextLarge: {
+    fontFamily: ds.typography.family,
+    fontSize: 16,
+    fontWeight: '500',
+    color: ds.colors.textPrimary,
+    flex: 1,
+  },
+  // NEW: Earnings Styles
+  earningsCard: {
+    marginBottom: 24,
+    paddingVertical: 20,
+  },
+  earningsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  earningsTitle: {
+    fontFamily: ds.typography.family,
+    fontSize: 18,
+    fontWeight: '600',
+    color: ds.colors.textPrimary,
+  },
+  viewDetailsButton: {
+    minWidth: 80,
+  },
+  periodSelector: {
+    flexDirection: 'row',
+    backgroundColor: ds.colors.backgroundDeep,
+    borderRadius: ds.radius.sm,
+    padding: 2,
+  },
+  periodButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: ds.radius.xs,
+    minWidth: 50,
+    alignItems: 'center',
+  },
+  periodButtonActive: {
+    backgroundColor: ds.colors.primary,
+  },
+  periodButtonText: {
+    fontFamily: ds.typography.family,
+    fontSize: 12,
+    fontWeight: '500',
+    color: ds.colors.textSecondary,
+  },
+  periodButtonTextActive: {
+    color: ds.colors.textPrimary,
+  },
+  earningsLoading: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    fontFamily: ds.typography.family,
+    fontSize: 14,
+    color: ds.colors.textSecondary,
+  },
+  earningsError: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  errorText: {
+    fontFamily: ds.typography.family,
+    fontSize: 14,
+    color: ds.colors.error,
+    marginBottom: 8,
+  },
+  earningsContent: {
+    gap: 16,
+  },
+  earningsMain: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  earningsAmount: {
+    fontFamily: ds.typography.family,
+    fontSize: 32,
+    fontWeight: '700',
+    color: ds.colors.primary,
+    marginBottom: 4,
+  },
+  earningsLabel: {
+    fontFamily: ds.typography.family,
+    fontSize: 14,
+    color: ds.colors.textSecondary,
+  },
+  earningsBreakdown: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  earningsItem: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: ds.colors.backgroundDeep,
+    borderRadius: ds.radius.sm,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  earningsItemValue: {
+    fontFamily: ds.typography.family,
+    fontSize: 16,
+    fontWeight: '600',
+    color: ds.colors.textPrimary,
+    marginBottom: 2,
+  },
+  earningsItemLabel: {
+    fontFamily: ds.typography.family,
+    fontSize: 11,
+    color: ds.colors.textSecondary,
+  },
+  // NEW: Navigation Styles
+  navigationCard: {
+    marginBottom: 24,
+    paddingVertical: 20,
+  },
+  navigationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  navigationTitle: {
+    fontFamily: ds.typography.family,
+    fontSize: 18,
+    fontWeight: '600',
+    color: ds.colors.textPrimary,
+  },
+  etaText: {
+    fontFamily: ds.typography.family,
+    fontSize: 14,
+    fontWeight: '500',
+    color: ds.colors.primary,
+  },
+  navigationLoading: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  navigationError: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  navigationContent: {
+    gap: 16,
+  },
+  routeInfo: {
+    gap: 12,
+  },
+  routePoint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  routeAddress: {
+    fontFamily: ds.typography.family,
+    fontSize: 14,
+    color: ds.colors.textPrimary,
+    flex: 1,
+  },
+  navigationStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: ds.colors.backgroundDeep,
+    borderRadius: ds.radius.sm,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  navigateButton: {
+    marginTop: 8,
+  },
+  navigateContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  navigateText: {
+    fontFamily: ds.typography.family,
+    fontSize: 16,
+    fontWeight: '600',
+    color: ds.colors.textPrimary,
+  },
+  // NEW: Real-time Location Tracking Styles
+  locationStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: ds.colors.backgroundDeep,
+    borderRadius: ds.radius.sm,
+  },
+  statusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusActive: {
+    backgroundColor: ds.colors.success,
+  },
+  statusInactive: {
+    backgroundColor: ds.colors.textSecondary,
+  },
+  locationStatusText: {
+    fontFamily: ds.typography.family,
+    fontSize: 12,
+    fontWeight: '500',
+    color: ds.colors.textPrimary,
+    flex: 1,
+  },
+  accuracyText: {
+    fontFamily: ds.typography.family,
+    fontSize: 11,
+    color: ds.colors.textSecondary,
+  },
+  realtimeStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 12,
+    backgroundColor: ds.colors.backgroundDeep,
+    borderRadius: ds.radius.sm,
+  },
+  speedItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  speedText: {
+    fontFamily: ds.typography.family,
+    fontSize: 12,
+    fontWeight: '500',
+    color: ds.colors.primary,
+  },
+  headingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  headingText: {
+    fontFamily: ds.typography.family,
+    fontSize: 12,
+    fontWeight: '500',
+    color: ds.colors.secondary,
+  },
+  distanceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  distanceText: {
+    fontFamily: ds.typography.family,
+    fontSize: 12,
+    fontWeight: '500',
+    color: ds.colors.textSecondary,
+  },
+  // NEW: Completion Styles
+  completionCard: {
+    marginBottom: 24,
+    paddingVertical: 20,
+  },
+  completeRideButton: {
+    backgroundColor: ds.colors.success,
+  },
+  completeRideContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  completeRideText: {
+    fontFamily: ds.typography.family,
+    fontSize: 16,
+    fontWeight: '600',
+    color: ds.colors.textPrimary,
+  },
+  completionModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  completionModalCard: {
+    width: '100%',
+    maxWidth: 400,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+  },
+  completionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  completionTitle: {
+    fontFamily: ds.typography.family,
+    fontSize: 20,
+    fontWeight: '600',
+    color: ds.colors.textPrimary,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  completionContent: {
+    gap: 20,
+  },
+  rideSummary: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    backgroundColor: ds.colors.backgroundDeep,
+    borderRadius: ds.radius.sm,
+  },
+  summaryLabel: {
+    fontFamily: ds.typography.family,
+    fontSize: 14,
+    color: ds.colors.textSecondary,
+    marginBottom: 4,
+  },
+  summaryValue: {
+    fontFamily: ds.typography.family,
+    fontSize: 24,
+    fontWeight: '700',
+    color: ds.colors.primary,
+  },
+  tipSection: {
+    gap: 12,
+  },
+  tipTitle: {
+    fontFamily: ds.typography.family,
+    fontSize: 16,
+    fontWeight: '500',
+    color: ds.colors.textPrimary,
+  },
+  tipButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  tipButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    backgroundColor: ds.colors.backgroundDeep,
+    borderRadius: ds.radius.sm,
+    alignItems: 'center',
+  },
+  tipButtonActive: {
+    backgroundColor: ds.colors.primary,
+  },
+  tipButtonText: {
+    fontFamily: ds.typography.family,
+    fontSize: 14,
+    fontWeight: '500',
+    color: ds.colors.textSecondary,
+  },
+  tipButtonTextActive: {
+    color: ds.colors.textPrimary,
+  },
+  ratingSection: {
+    gap: 12,
+  },
+  ratingTitle: {
+    fontFamily: ds.typography.family,
+    fontSize: 16,
+    fontWeight: '500',
+    color: ds.colors.textPrimary,
+  },
+  ratingStars: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  submitButton: {
+    marginTop: 8,
+  },
+  submitButtonText: {
+    fontFamily: ds.typography.family,
+    fontSize: 16,
+    fontWeight: '600',
+    color: ds.colors.textPrimary,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statPressable: {
+    flex: 1,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  statValue: {
+    fontFamily: ds.typography.family,
+    fontSize: 24,
+    fontWeight: '600',
+    color: ds.colors.textPrimary,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontFamily: ds.typography.family,
+    fontSize: 12,
+    color: ds.colors.textSecondary,
+  },
+  tabBarContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: 24,
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBlur: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  requestModal: {
+    marginHorizontal: 20,
+    paddingVertical: 24,
+  },
+  requestHeader: {
+    marginBottom: 16,
+  },
+  riderInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  riderAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: ds.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  riderInitials: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: ds.colors.textPrimary,
+  },
+  riderName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: ds.colors.textPrimary,
+    fontFamily: ds.typography.family,
+  },
+  requestTime: {
+    fontSize: 14,
+    color: ds.colors.textSecondary,
+    fontFamily: ds.typography.family,
+    marginTop: 2,
+  },
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  dotPickup: {
+    backgroundColor: ds.colors.primary,
+  },
+  dotDropoff: {
+    backgroundColor: ds.colors.secondary,
+  },
+  routeText: {
+    fontSize: 14,
+    color: ds.colors.textPrimary,
+    fontFamily: ds.typography.family,
+    flex: 1,
+  },
+  tripDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  detailItem: {
+    alignItems: 'center',
+  },
+  detailValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: ds.colors.textPrimary,
+    fontFamily: ds.typography.family,
+    marginBottom: 2,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: ds.colors.textSecondary,
+    fontFamily: ds.typography.family,
+  },
+  countdownContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  countdownText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: ds.colors.textPrimary,
+    fontFamily: ds.typography.family,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  rejectButton: {
+    flex: 1,
+  },
+  rejectText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: ds.colors.textSecondary,
+  },
+  acceptButton: {
+    flex: 1,
+  },
+  acceptText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: ds.colors.textPrimary,
+  },
+});

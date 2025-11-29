@@ -1,0 +1,690 @@
+/**
+ * Payment Method Form Component
+ * Handles adding and editing payment methods with validation
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  TextInput,
+  ScrollView,
+  Alert,
+} from 'react-native';
+import Animated, {
+  FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { ds } from '@/constants/theme';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { PremiumButton } from '@/components/ui/PremiumButton';
+import { Icon } from '@/components/ui/Icon';
+import { payment } from '@/services/paymentService';
+import type { PaymentMethodInfo } from '@/api/payment';
+import { useHaptics } from '@/hooks/useHaptics';
+import { useSound } from '@/hooks/useSound';
+
+type CardPaymentType = 'credit_card' | 'debit_card';
+
+interface PaymentMethodFormProps {
+  paymentMethod?: PaymentMethodInfo;
+  onSave: (paymentMethod: PaymentMethodInfo) => void;
+  onCancel: () => void;
+  isLoading?: boolean;
+}
+
+export default function PaymentMethodForm({ 
+  paymentMethod, 
+  onSave, 
+  onCancel, 
+  isLoading = false 
+}: PaymentMethodFormProps) {
+  const [formData, setFormData] = useState({
+    type: 'credit_card' as CardPaymentType,
+    cardNumber: '',
+    expiryMonth: '',
+    expiryYear: '',
+    cvc: '',
+    cardholderName: '',
+  });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const fadeValue = useSharedValue(0);
+  const haptics = useHaptics();
+  const sound = useSound();
+
+  useEffect(() => {
+    fadeValue.value = withTiming(1, { duration: 300 });
+  }, [fadeValue]);
+
+  useEffect(() => {
+    if (paymentMethod && (paymentMethod.type === 'credit_card' || paymentMethod.type === 'debit_card')) {
+      setFormData({
+        type: paymentMethod.type,
+        cardNumber: `**** **** **** ${paymentMethod.last4}`,
+        expiryMonth: paymentMethod.expiryMonth.toString(),
+        expiryYear: paymentMethod.expiryYear.toString(),
+        cvc: '',
+        cardholderName: paymentMethod.cardholderName || '',
+      });
+    }
+  }, [paymentMethod]);
+
+  const fadeStyle = useAnimatedStyle(() => ({
+    opacity: fadeValue.value,
+  }));
+
+  // Simulate card scanning (in production, use expo-camera + ML Kit)
+  const handleScanCard = useCallback(() => {
+    haptics.trigger('tap');
+    sound.play('tapSoft');
+    setIsScanning(true);
+
+    // Simulate scanning delay
+    setTimeout(() => {
+      setFormData(prev => ({
+        ...prev,
+        cardNumber: '4242 4242 4242 4242',
+        expiryMonth: '12',
+        expiryYear: '26',
+        cvc: '123',
+      }));
+      setIsScanning(false);
+      haptics.trigger('confirm');
+      sound.play('success');
+    }, 2000);
+  }, [haptics, sound]);
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    // Card number validation
+    if (!formData.cardNumber.replace(/\s/g, '')) {
+      newErrors.cardNumber = 'Card number is required';
+    } else if (!payment.validateCardNumber(formData.cardNumber)) {
+      newErrors.cardNumber = 'Invalid card number';
+    }
+
+    // Expiry validation
+    const month = parseInt(formData.expiryMonth);
+    const year = parseInt(formData.expiryYear);
+    if (!formData.expiryMonth || !formData.expiryYear) {
+      newErrors.expiry = 'Expiry date is required';
+    } else if (!payment.validateExpiry(month, year)) {
+      newErrors.expiry = 'Card has expired or invalid date';
+    }
+
+    // CVC validation
+    if (!formData.cvc) {
+      newErrors.cvc = 'CVC is required';
+    } else if (!payment.validateCVC(formData.cardNumber, formData.cvc)) {
+      newErrors.cvc = 'Invalid CVC';
+    }
+
+    // Cardholder name validation
+    if (!formData.cardholderName.trim()) {
+      newErrors.cardholderName = 'Cardholder name is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) {
+      haptics.trigger('error');
+      sound.play('warning');
+      return;
+    }
+
+    setIsProcessing(true);
+    setErrors({});
+    haptics.trigger('confirm');
+    sound.play('success');
+
+    try {
+      const paymentMethodData = {
+        type: formData.type,
+        cardNumber: formData.cardNumber.replace(/\s/g, ''),
+        expiryMonth: parseInt(formData.expiryMonth),
+        expiryYear: parseInt(formData.expiryYear),
+        cvc: formData.cvc,
+        cardholderName: formData.cardholderName.trim(),
+      };
+
+      const savedPaymentMethod = await payment.addPaymentMethod(paymentMethodData);
+      onSave(savedPaymentMethod);
+    } catch (error) {
+      haptics.trigger('error');
+      sound.play('warning');
+      Alert.alert(
+        'Payment Error',
+        'Failed to save payment method. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const formatCardNumber = (text: string) => {
+    const cleaned = text.replace(/\s/g, '');
+    const chunks = cleaned.match(/.{1,4}/g) || [];
+    return chunks.join(' ');
+  };
+
+  const handleCardNumberChange = (text: string) => {
+    const formatted = formatCardNumber(text);
+    setFormData(prev => ({ ...prev, cardNumber: formatted }));
+    if (errors.cardNumber) {
+      setErrors(prev => ({ ...prev, cardNumber: '' }));
+    }
+  };
+
+  const handleExpiryChange = (field: 'month' | 'year', value: string) => {
+    const numValue = value.replace(/\D/g, '');
+    
+    if (field === 'month') {
+      const month = parseInt(numValue);
+      if (numValue === '' || (month >= 1 && month <= 12)) {
+        setFormData(prev => ({ ...prev, expiryMonth: numValue }));
+        if (numValue.length === 2 && !formData.expiryYear) {
+          // Auto-focus year when month is complete
+        }
+      }
+    } else {
+      setFormData(prev => ({ ...prev, expiryYear: numValue }));
+    }
+    
+    if (errors.expiry) {
+      setErrors(prev => ({ ...prev, expiry: '' }));
+    }
+  };
+
+  const getCardIcon = (_cardNumber: string): 'activity' => {
+    // Using 'activity' icon as card placeholder (document-like icon)
+    // TODO: Add dedicated card icons to Icon component when needed
+    return 'activity';
+  };
+
+  const getCardBrandName = (cardNumber: string) => {
+    const cleaned = cardNumber.replace(/\s/g, '');
+    if (cleaned.startsWith('4')) return 'Visa';
+    if (cleaned.startsWith('5')) return 'Mastercard';
+    if (cleaned.startsWith('3')) return 'American Express';
+    return 'Card';
+  };
+
+  return (
+    <Animated.View style={[styles.container, fadeStyle]}>
+      <GlassCard elevated style={styles.formCard}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>
+            {paymentMethod ? 'Edit Payment Method' : 'Add Payment Method'}
+          </Text>
+          <Pressable style={styles.closeButton} onPress={onCancel}>
+            <Icon name="menu" size={24} color={ds.colors.textSecondary} />
+          </Pressable>
+        </View>
+
+        {/* Payment Type Selector */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Payment Type</Text>
+          <View style={styles.typeSelector}>
+            {(['credit_card', 'debit_card'] as CardPaymentType[]).map((type) => (
+              <Pressable
+                key={type}
+                style={[
+                  styles.typeOption,
+                  formData.type === type && styles.typeOptionSelected,
+                ]}
+                onPress={() => {
+                  haptics.trigger('tap');
+                  sound.play('tapSoft');
+                  setFormData(prev => ({ ...prev, type }));
+                }}
+              >
+                <Icon 
+                  name="location" 
+                  size={16} 
+                  color={formData.type === type ? ds.colors.primary : ds.colors.textSecondary} 
+                />
+                <Text style={[
+                  styles.typeText,
+                  formData.type === type && styles.typeTextSelected,
+                ]}>
+                  {type === 'credit_card' ? 'Credit Card' : 'Debit Card'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {/* Scan Card Feature */}
+        {!paymentMethod && (
+          <Pressable
+            style={[
+              styles.scanCardContainer,
+              isScanning && styles.scanCardContainerActive,
+            ]}
+            onPress={handleScanCard}
+            disabled={isScanning}
+          >
+            {isScanning && (
+              <Animated.View 
+                entering={FadeIn.duration(200)}
+                style={styles.scanLine}
+              />
+            )}
+            <Icon 
+              name="search" 
+              size={32} 
+              color={isScanning ? ds.colors.primary : ds.colors.textSecondary} 
+            />
+            <Text style={[
+              styles.scanCardText,
+              isScanning && styles.scanCardTextActive,
+            ]}>
+              {isScanning ? 'Scanning Card...' : 'Scan Card'}
+            </Text>
+          </Pressable>
+        )}
+
+        {/* Card Details */}
+        <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Card Details</Text>
+            
+            {/* Card Number */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Card Number</Text>
+              <View style={[
+                styles.inputContainer,
+                errors.cardNumber && styles.inputError,
+              ]}>
+                <Icon 
+                  name={getCardIcon(formData.cardNumber)} 
+                  size={20} 
+                  color={ds.colors.textSecondary} 
+                />
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    focusedField === 'cardNumber' && styles.textInputFocused,
+                  ]}
+                  value={formData.cardNumber}
+                  onChangeText={handleCardNumberChange}
+                  placeholder="1234 5678 9012 3456"
+                  placeholderTextColor={ds.colors.textSecondary}
+                  keyboardType="numeric"
+                  maxLength={19} // 16 digits + 3 spaces
+                  editable={!paymentMethod} // Don't allow editing card number for existing methods
+                  onFocus={() => setFocusedField('cardNumber')}
+                  onBlur={() => {
+                    if (focusedField === 'cardNumber') {
+                      setFocusedField(null);
+                    }
+                  }}
+                />
+              </View>
+              {errors.cardNumber && (
+                <Text style={styles.errorText}>{errors.cardNumber}</Text>
+              )}
+            </View>
+
+            {/* Expiry Date */}
+            <View style={styles.inputRow}>
+              <View style={[styles.inputGroup, styles.halfWidth]}>
+                <Text style={styles.inputLabel}>Expiry Month</Text>
+                <View style={[
+                  styles.inputContainer,
+                  errors.expiry && styles.inputError,
+                ]}>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      focusedField === 'expiryMonth' && styles.textInputFocused,
+                    ]}
+                    value={formData.expiryMonth}
+                    onChangeText={(value) => handleExpiryChange('month', value)}
+                    placeholder="MM"
+                    placeholderTextColor={ds.colors.textSecondary}
+                    keyboardType="numeric"
+                    maxLength={2}
+                    onFocus={() => setFocusedField('expiryMonth')}
+                    onBlur={() => {
+                      if (focusedField === 'expiryMonth') {
+                        setFocusedField(null);
+                      }
+                    }}
+                  />
+                </View>
+              </View>
+
+              <View style={[styles.inputGroup, styles.halfWidth]}>
+                <Text style={styles.inputLabel}>Expiry Year</Text>
+                <View style={[
+                  styles.inputContainer,
+                  errors.expiry && styles.inputError,
+                ]}>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      focusedField === 'expiryYear' && styles.textInputFocused,
+                    ]}
+                    value={formData.expiryYear}
+                    onChangeText={(value) => handleExpiryChange('year', value)}
+                    placeholder="YY"
+                    placeholderTextColor={ds.colors.textSecondary}
+                    keyboardType="numeric"
+                    maxLength={2}
+                    onFocus={() => setFocusedField('expiryYear')}
+                    onBlur={() => {
+                      if (focusedField === 'expiryYear') {
+                        setFocusedField(null);
+                      }
+                    }}
+                  />
+                </View>
+              </View>
+            </View>
+            {errors.expiry && (
+              <Text style={styles.errorText}>{errors.expiry}</Text>
+            )}
+
+            {/* CVC */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>CVC</Text>
+              <View style={[
+                styles.inputContainer,
+                errors.cvc && styles.inputError,
+              ]}>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    focusedField === 'cvc' && styles.textInputFocused,
+                  ]}
+                  value={formData.cvc}
+                  onChangeText={(value) => {
+                    setFormData(prev => ({ ...prev, cvc: value.replace(/\D/g, '') }));
+                    if (errors.cvc) {
+                      setErrors(prev => ({ ...prev, cvc: '' }));
+                    }
+                  }}
+                  placeholder="123"
+                  placeholderTextColor={ds.colors.textSecondary}
+                  keyboardType="numeric"
+                  maxLength={4}
+                  secureTextEntry
+                  onFocus={() => setFocusedField('cvc')}
+                  onBlur={() => {
+                    if (focusedField === 'cvc') {
+                      setFocusedField(null);
+                    }
+                  }}
+                />
+              </View>
+              {errors.cvc && (
+                <Text style={styles.errorText}>{errors.cvc}</Text>
+              )}
+            </View>
+
+            {/* Cardholder Name */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Cardholder Name</Text>
+              <View style={[
+                styles.inputContainer,
+                errors.cardholderName && styles.inputError,
+              ]}>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    focusedField === 'cardholderName' && styles.textInputFocused,
+                  ]}
+                  value={formData.cardholderName}
+                  onChangeText={(value) => {
+                    setFormData(prev => ({ ...prev, cardholderName: value }));
+                    if (errors.cardholderName) {
+                      setErrors(prev => ({ ...prev, cardholderName: '' }));
+                    }
+                  }}
+                  placeholder="John Doe"
+                  placeholderTextColor={ds.colors.textSecondary}
+                  autoCapitalize="words"
+                  onFocus={() => setFocusedField('cardholderName')}
+                  onBlur={() => {
+                    if (focusedField === 'cardholderName') {
+                      setFocusedField(null);
+                    }
+                  }}
+                />
+              </View>
+              {errors.cardholderName && (
+                <Text style={styles.errorText}>{errors.cardholderName}</Text>
+              )}
+            </View>
+          </View>
+
+        {/* Additional payment types (e.g. wallets) can be added here in future */}
+
+        {/* Action Buttons */}
+        <View style={styles.actions}>
+          <PremiumButton
+            variant="secondary"
+            size="lg"
+            onPress={onCancel}
+            disabled={isProcessing}
+            style={styles.cancelButton}
+          >
+            Cancel
+          </PremiumButton>
+          
+          <PremiumButton
+            variant="primary"
+            size="lg"
+            onPress={handleSave}
+            loading={isProcessing || isLoading}
+            disabled={isProcessing || isLoading}
+            style={styles.saveButton}
+          >
+            {paymentMethod ? 'Update' : 'Add'} Payment Method
+          </PremiumButton>
+        </View>
+      </GlassCard>
+    </Animated.View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  formCard: {
+    margin: ds.spacing.lg,
+    padding: ds.spacing.lg,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: ds.spacing.lg,
+  },
+  title: {
+    fontSize: ds.typography.size.title,
+    fontWeight: ds.typography.weight.bold,
+    color: ds.colors.text,
+    fontFamily: ds.typography.family,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: ds.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  section: {
+    marginBottom: ds.spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: ds.typography.size.bodyLg,
+    fontWeight: ds.typography.weight.semibold,
+    color: ds.colors.text,
+    fontFamily: ds.typography.family,
+    marginBottom: ds.spacing.md,
+  },
+  typeSelector: {
+    flexDirection: 'row',
+    gap: ds.spacing.sm,
+  },
+  typeOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: ds.spacing.md,
+    paddingHorizontal: ds.spacing.sm,
+    borderRadius: ds.radius.md,
+    backgroundColor: ds.colors.surface,
+    borderWidth: 1,
+    borderColor: ds.colors.glassBorder,
+  },
+  typeOptionSelected: {
+    backgroundColor: ds.colors.primary + '20',
+    borderColor: ds.colors.primary,
+  },
+  typeText: {
+    fontSize: ds.typography.size.caption,
+    color: ds.colors.textSecondary,
+    fontFamily: ds.typography.family,
+    marginLeft: ds.spacing.xs,
+  },
+  typeTextSelected: {
+    color: ds.colors.primary,
+    fontWeight: ds.typography.weight.medium,
+  },
+  inputGroup: {
+    marginBottom: ds.spacing.md,
+  },
+  halfWidth: {
+    flex: 1,
+    marginRight: ds.spacing.sm,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    marginBottom: ds.spacing.md,
+  },
+  inputLabel: {
+    fontSize: ds.typography.size.body,
+    fontWeight: ds.typography.weight.medium,
+    color: ds.colors.text,
+    fontFamily: ds.typography.family,
+    marginBottom: ds.spacing.xs,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: ds.colors.backgroundAlt,
+    borderRadius: ds.radius.md,
+    paddingHorizontal: ds.spacing.md,
+    paddingVertical: ds.spacing.sm,
+    borderWidth: 1,
+    borderColor: ds.colors.glassBorder,
+  },
+  inputError: {
+    borderColor: ds.colors.error,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: ds.typography.size.body,
+    color: ds.colors.text,
+    fontFamily: ds.typography.family,
+    marginLeft: ds.spacing.sm,
+  },
+  textInputFocused: {
+    borderColor: ds.colors.primary,
+    shadowColor: ds.colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: ds.shadow.card.offsetY,
+    },
+    shadowOpacity: ds.shadow.card.opacity,
+    shadowRadius: ds.shadow.card.radius,
+    elevation: 2,
+  },
+  errorText: {
+    fontSize: ds.typography.size.caption,
+    color: ds.colors.error,
+    fontFamily: ds.typography.family,
+    marginTop: ds.spacing.xs,
+  },
+  paypalInfo: {
+    alignItems: 'center',
+    padding: ds.spacing.lg,
+    backgroundColor: ds.colors.backgroundAlt,
+    borderRadius: ds.radius.md,
+  },
+  paypalText: {
+    fontSize: ds.typography.size.body,
+    color: ds.colors.textSecondary,
+    fontFamily: ds.typography.family,
+    textAlign: 'center',
+    marginTop: ds.spacing.md,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: ds.spacing.md,
+    marginTop: ds.spacing.lg,
+  },
+  cancelButton: {
+    flex: 1,
+  },
+  saveButton: {
+    flex: 2,
+  },
+  // Scan card styles
+  scanCardContainer: {
+    height: 128,
+    borderRadius: ds.radius.lg,
+    backgroundColor: ds.colors.backgroundAlt,
+    borderWidth: 1,
+    borderColor: ds.colors.glassBorder,
+    marginBottom: ds.spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  scanCardContainerActive: {
+    borderColor: ds.colors.primary,
+    backgroundColor: ds.colors.primary + '10',
+  },
+  scanLine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: ds.colors.primary,
+    shadowColor: ds.colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+  },
+  scanCardText: {
+    fontSize: ds.typography.size.body,
+    fontFamily: ds.typography.family,
+    fontWeight: ds.typography.weight.medium,
+    color: ds.colors.textSecondary,
+    marginTop: ds.spacing.sm,
+  },
+  scanCardTextActive: {
+    color: ds.colors.primary,
+  },
+});

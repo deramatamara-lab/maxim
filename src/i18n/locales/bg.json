@@ -1,0 +1,139 @@
+{
+  "onboarding": {
+    "kicker": "Ултра премиум мобилност",
+    "titleLineOne": "Призови",
+    "titleLineTwo": "своята Aura",
+    "subtitle": "Кинематични пътувания със синхронизирани хаптици, звук и копринено движение над всеки силует.",
+    "currentLabel": "Текуща позиция",
+    "currentStatus": "Свързваме сензорите…",
+    "destinationLabel": "Дестинация",
+    "destinationPlaceholder": "Накъде тази вечер?",
+    "presetTitle": "Най-желани",
+    "presetAccessibilityHint": "Докоснете два пъти, за да зададете тази дестинация",
+    "ctaLabel": "Влез в Rider Hub",
+    "ctaHint": "Навигира към живия интерфейс за пътувания",
+    "legal": "Продължавайки приемате премиум движение, звук и хаптик през цялото изживяване.",
+    "watchDemo": "Виж кинематичния поток"
+  },
+  "home": {
+    "greeting": "Добър вечер,",
+    "userName": "{{name}}",
+    "currentLocation": "Текуща локация",
+    "cta": {
+      "searchRides": "Търси пътувания",
+      "locating": "Търсим..."
+    },
+    "error": {
+      "locationNotFound": "Не успяхме да намерим адреса."
+    },
+    "errorLocate": "Не успяхме да намерим адреса.",
+    "paymentMasked": "Visa •••• 4242",
+    "promoLabel": "Промо",
+    "activityPlaceholder": "Вашата активност",
+    "locationPlaceholder": "Запазени локации",
+    "profilePlaceholder": "Настройки на профила",
+    "heroTitle": "Премиум Обвивка Онлайн",
+    "heroKicker": "Фаза 01",
+    "heroBody": "Шрифтове, стъкло и амбиент са заключени. Следва: кинематично движение + входни точки за пътувания.",
+    "ctaFeel": "Усети Сиянието",
+    "telemetryTitle": "Телеметрия",
+    "frameIdle": "Кадър Празен",
+    "audioHaptic": "Аудио/Хаптик",
+    "sensors": "Сензори",
+    "synced": "Синхронизирано",
+    "destinationLabel": "Дестинация",
+    "destinationPlaceholder": "Къде искаш да отидеш?",
+    "mapView": "Карта",
+    "mapComingSoon": "Предстои във Фаза 3",
+    "recentTitle": "Последни дестинации",
+    "rideOptionsTitle": "Изберете вашата аура",
+    "rideOptionsSubtitle": "Всеки клас е настроен за ритъма на града.",
+    "confirmCta": "Заяви пътуване",
+    "tabHome": "Начало",
+    "tabActivity": "Активност",
+    "tabLocation": "Локации",
+    "tabProfile": "Профил",
+    "accessibility": {
+      "destinationPresetHint": "Докоснете два пъти, за да зададете тази дестинация",
+      "destinationInputHint": "Въведете желаната дестинация",
+      "confirmHint": "Докоснете два пъти, за да заявите пътуване"
+    }
+  },
+  "ride": {
+    "confirmWithTier": "Потвърди {{tier}}",
+    "confirm": "Потвърди Пътуване",
+    "cancel": "Отказ",
+    "destination": "Къде отивате?",
+    "pickup": "Място за качване",
+    "estimatedTime": "Приблизително време",
+    "estimatedPrice": "Приблизителна цена",
+    "meta": {
+      "eta": "Пристигане",
+      "price": "Прогноза",
+      "surge": "Множител x{{multiplier}}"
+    },
+    "recent": {
+      "vibeDistrict": "Neon Vibe District",
+      "equinoxHub": "Equinox Transfer Hub",
+      "skyGarden": "Sky Garden Terminal"
+    },
+    "accessibility": {
+      "selectRideOption": "Докоснете два пъти, за да изберете този клас",
+      "rideSelected": "Избран клас"
+    },
+    "options": {
+      "lux": {
+        "name": "Aura Lux",
+        "description": "BMW i7 · Частно · 2 места",
+        "eta": "ETA · 3 мин",
+        "price": "€42"
+      },
+      "pulse": {
+        "name": "Aura Pulse",
+        "description": "Polestar 4 · Спортна настройка",
+        "eta": "ETA · 4 мин",
+        "price": "€36"
+      },
+      "share": {
+        "name": "Aura Share",
+        "description": "Audi Q4 e-tron · Споделено",
+        "eta": "ETA · 6 мин",
+        "price": "€18"
+      }
+    }
+  },
+  "driver": {
+    "goOnline": "Включи се",
+    "goOffline": "Изключи се",
+    "acceptRide": "Приеми Пътуване",
+    "declineRide": "Откажи",
+    "arrived": "Пристигнах",
+    "startRide": "Започни Пътуване",
+    "completeRide": "Завърши Пътуване"
+  },
+  "profile": {
+    "title": "Профил",
+    "settings": "Настройки",
+    "language": "Език",
+    "notifications": "Известия",
+    "payment": "Методи за плащане",
+    "history": "История на пътуванията",
+    "support": "Поддръжка",
+    "logout": "Изход"
+  },
+  "common": {
+    "loading": "Зареждане...",
+    "error": "Нещо се обърка",
+    "retry": "Опитай отново",
+    "ok": "ОК",
+    "cancel": "Отказ",
+    "save": "Запази",
+    "close": "Затвори"
+  },
+  "nav": {
+    "home": "Начало",
+    "activity": "Вашата активност",
+    "locations": "Запазени локации",
+    "profile": "Настройки на профила"
+  }
+}

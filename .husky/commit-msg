@@ -1,0 +1,38 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Validate commit message format
+# Expected format: type(scope): message
+# Example: feat(auth): add biometric login
+
+commit_msg_file=$1
+commit_msg=$(cat "$commit_msg_file")
+
+# Allow merge commits and revert commits
+if echo "$commit_msg" | grep -qE "^Merge|^Revert"; then
+  exit 0
+fi
+
+# Check commit message format
+if ! echo "$commit_msg" | grep -qE "^(feat|fix|docs|style|refactor|perf|test|chore|ci|build)(\(.+\))?: .{1,}$"; then
+  echo "❌ Invalid commit message format."
+  echo ""
+  echo "Expected format: type(scope): message"
+  echo ""
+  echo "Types:"
+  echo "  feat:     New feature"
+  echo "  fix:      Bug fix"
+  echo "  docs:     Documentation"
+  echo "  style:    Code style (formatting, etc.)"
+  echo "  refactor: Code refactoring"
+  echo "  perf:     Performance improvement"
+  echo "  test:     Tests"
+  echo "  chore:    Maintenance"
+  echo "  ci:       CI/CD changes"
+  echo "  build:    Build system changes"
+  echo ""
+  echo "Example: feat(auth): add biometric login"
+  exit 1
+fi
+
+echo "✅ Commit message format valid"

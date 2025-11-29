@@ -1,0 +1,139 @@
+{
+  "onboarding": {
+    "kicker": "Ultra premium mobility",
+    "titleLineOne": "Summon",
+    "titleLineTwo": "your Aura",
+    "subtitle": "Cinematic rides with synchronized haptics, audio, and glass-smooth motion across every skyline.",
+    "currentLabel": "Current position",
+    "currentStatus": "Linking sensors…",
+    "destinationLabel": "Destination",
+    "destinationPlaceholder": "Where to tonight?",
+    "presetTitle": "Most requested",
+    "presetAccessibilityHint": "Double tap to stage this destination",
+    "ctaLabel": "Enter Rider Hub",
+    "ctaHint": "Navigates into the live rider experience",
+    "legal": "By continuing you embrace premium motion, audio, and haptic feedback throughout the journey.",
+    "watchDemo": "Preview cinematic flow"
+  },
+  "home": {
+    "greeting": "Good evening,",
+    "userName": "{{name}}",
+    "currentLocation": "Current Location",
+    "cta": {
+      "searchRides": "Search Rides",
+      "locating": "Locating..."
+    },
+    "error": {
+      "locationNotFound": "Could not locate address."
+    },
+    "errorLocate": "Could not locate that address.",
+    "paymentMasked": "Visa •••• 4242",
+    "promoLabel": "Promo",
+    "activityPlaceholder": "Your Activity",
+    "locationPlaceholder": "Saved Locations",
+    "profilePlaceholder": "Profile Settings",
+    "heroTitle": "Premium Shell Online",
+    "heroKicker": "Phase 01",
+    "heroBody": "Fonts, glass, and ambience are locked. Next up: cinematic motion + ride entrypoints.",
+    "ctaFeel": "Feel the Glow",
+    "telemetryTitle": "Telemetry",
+    "frameIdle": "Frame Idle",
+    "audioHaptic": "Audio/Haptic",
+    "sensors": "Sensors",
+    "synced": "Synced",
+    "destinationLabel": "Destination",
+    "destinationPlaceholder": "Where do you want to go?",
+    "mapView": "Map View",
+    "mapComingSoon": "Coming in Phase 3",
+    "recentTitle": "Recent drops",
+    "rideOptionsTitle": "Choose your aura",
+    "rideOptionsSubtitle": "Every tier tuned for the city pulse.",
+    "confirmCta": "Request Ride",
+    "tabHome": "Home",
+    "tabActivity": "Activity",
+    "tabLocation": "Saved Locations",
+    "tabProfile": "Profile",
+    "accessibility": {
+      "destinationPresetHint": "Double tap to set this as your destination",
+      "destinationInputHint": "Enter your desired drop-off",
+      "confirmHint": "Double tap to request this ride"
+    }
+  },
+  "ride": {
+    "confirmWithTier": "Confirm {{tier}}",
+    "confirm": "Confirm Ride",
+    "cancel": "Cancel",
+    "destination": "Where to?",
+    "pickup": "Pickup Location",
+    "estimatedTime": "Estimated Time",
+    "estimatedPrice": "Estimated Price",
+    "meta": {
+      "eta": "ETA",
+      "price": "Estimated",
+      "surge": "Surge x{{multiplier}}"
+    },
+    "recent": {
+      "vibeDistrict": "Neon Vibe District",
+      "equinoxHub": "Equinox Transfer Hub",
+      "skyGarden": "Sky Garden Terminal"
+    },
+    "accessibility": {
+      "selectRideOption": "Double tap to choose this ride tier",
+      "rideSelected": "Selected ride tier"
+    },
+    "options": {
+      "lux": {
+        "name": "Aura Lux",
+        "description": "BMW i7 · Private · 2 pax",
+        "eta": "ETA · 3 min",
+        "price": "€42"
+      },
+      "pulse": {
+        "name": "Aura Pulse",
+        "description": "Polestar 4 · Performance tuned",
+        "eta": "ETA · 4 min",
+        "price": "€36"
+      },
+      "share": {
+        "name": "Aura Share",
+        "description": "Audi Q4 e-tron · Carpool",
+        "eta": "ETA · 6 min",
+        "price": "€18"
+      }
+    }
+  },
+  "driver": {
+    "goOnline": "Go Online",
+    "goOffline": "Go Offline",
+    "acceptRide": "Accept Ride",
+    "declineRide": "Decline",
+    "arrived": "I've Arrived",
+    "startRide": "Start Ride",
+    "completeRide": "Complete Ride"
+  },
+  "profile": {
+    "title": "Profile",
+    "settings": "Settings",
+    "language": "Language",
+    "notifications": "Notifications",
+    "payment": "Payment Methods",
+    "history": "Ride History",
+    "support": "Support",
+    "logout": "Log Out"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close"
+  },
+  "nav": {
+    "home": "Home",
+    "activity": "Your Activity",
+    "locations": "Saved Locations",
+    "profile": "Profile Settings"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Project Aura - Web Prototype",
+  "description": "Ultra-Premium Ride Sharing Interface. A cinematic, glassmorphic experience featuring a futuristic HUD, real-time map simulation, and AI-driven concierge interactions.",
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone"
+  ]
+}

@@ -1,0 +1,47 @@
+{"level":"info","message":"Aura Backend Server running on port 3001","timestamp":"2025-11-25T08:19:33.265Z"}
+{"level":"info","message":"Environment: development","timestamp":"2025-11-25T08:19:33.267Z"}
+{"level":"info","message":"Health check: http://localhost:3001/health","timestamp":"2025-11-25T08:19:33.267Z"}
+{"level":"info","message":"Aura Backend Server running on port 3001","timestamp":"2025-11-25T09:15:02.191Z"}
+{"level":"info","message":"Environment: development","timestamp":"2025-11-25T09:15:02.193Z"}
+{"level":"info","message":"Health check: http://localhost:3001/health","timestamp":"2025-11-25T09:15:02.193Z"}
+{"level":"info","message":"Aura Backend Server running on port 3001","timestamp":"2025-11-28T02:15:17.354Z"}
+{"level":"info","message":"Environment: development","timestamp":"2025-11-28T02:15:17.355Z"}
+{"level":"info","message":"Health check: http://localhost:3001/health","timestamp":"2025-11-28T02:15:17.355Z"}
+{"level":"info","message":"Aura Backend Server running on port 3001","timestamp":"2025-11-28T02:19:36.485Z"}
+{"level":"info","message":"Environment: development","timestamp":"2025-11-28T02:19:36.486Z"}
+{"level":"info","message":"Health check: http://localhost:3001/health","timestamp":"2025-11-28T02:19:36.486Z"}
+{"level":"info","message":"SIGTERM received, shutting down gracefully","timestamp":"2025-11-28T02:19:59.327Z"}
+{"level":"info","message":"Aura Backend Server running on port 3002","timestamp":"2025-11-28T02:20:05.366Z"}
+{"level":"info","message":"Environment: development","timestamp":"2025-11-28T02:20:05.368Z"}
+{"level":"info","message":"Health check: http://localhost:3002/health","timestamp":"2025-11-28T02:20:05.368Z"}
+{"level":"info","message":"Aura Backend Server running on port 3001","timestamp":"2025-11-28T02:20:37.790Z"}
+{"level":"info","message":"Environment: development","timestamp":"2025-11-28T02:20:37.791Z"}
+{"level":"info","message":"Health check: http://localhost:3001/health","timestamp":"2025-11-28T02:20:37.792Z"}
+{"level":"info","message":"SIGTERM received, shutting down gracefully","timestamp":"2025-11-28T02:22:18.967Z"}
+{"level":"info","message":"Aura Backend Server running on port 3001","timestamp":"2025-11-28T02:22:20.207Z"}
+{"level":"info","message":"Environment: development","timestamp":"2025-11-28T02:22:20.210Z"}
+{"level":"info","message":"Health check: http://localhost:3001/health","timestamp":"2025-11-28T02:22:20.210Z"}
+{"level":"info","message":"Aura Backend Server running on port 3002","timestamp":"2025-11-28T02:22:38.801Z"}
+{"level":"info","message":"Environment: development","timestamp":"2025-11-28T02:22:38.803Z"}
+{"level":"info","message":"Health check: http://localhost:3002/health","timestamp":"2025-11-28T02:22:38.803Z"}
+{"level":"info","message":"SIGTERM received, shutting down gracefully","timestamp":"2025-11-28T02:26:15.629Z"}
+{"level":"info","message":"Aura Backend Server running on port 3001","timestamp":"2025-11-28T02:26:16.802Z"}
+{"level":"info","message":"Environment: development","timestamp":"2025-11-28T02:26:16.803Z"}
+{"level":"info","message":"Health check: http://localhost:3001/health","timestamp":"2025-11-28T02:26:16.804Z"}
+{"level":"info","message":"Aura Backend Server running on port 3001","timestamp":"2025-11-28T02:26:43.388Z"}
+{"level":"info","message":"Environment: development","timestamp":"2025-11-28T02:26:43.390Z"}
+{"level":"info","message":"Health check: http://localhost:3001/health","timestamp":"2025-11-28T02:26:43.391Z"}
+{"level":"info","message":"Aura Backend Server running on port 3001","timestamp":"2025-11-28T02:28:54.600Z"}
+{"level":"info","message":"Environment: development","timestamp":"2025-11-28T02:28:54.602Z"}
+{"level":"info","message":"Health check: http://localhost:3001/health","timestamp":"2025-11-28T02:28:54.602Z"}
+{"level":"info","message":"Aura Backend Server running on port 3001","timestamp":"2025-11-28T02:32:54.810Z"}
+{"level":"info","message":"Environment: development","timestamp":"2025-11-28T02:32:54.812Z"}
+{"level":"info","message":"Health check: http://localhost:3001/health","timestamp":"2025-11-28T02:32:54.812Z"}
+{"level":"info","message":"SIGTERM received, shutting down gracefully","timestamp":"2025-11-28T02:35:15.793Z"}
+{"level":"info","message":"Aura Backend Server running on port 3001","timestamp":"2025-11-28T02:35:16.935Z"}
+{"level":"info","message":"Environment: development","timestamp":"2025-11-28T02:35:16.937Z"}
+{"level":"info","message":"Health check: http://localhost:3001/health","timestamp":"2025-11-28T02:35:16.937Z"}
+{"level":"info","message":"SIGTERM received, shutting down gracefully","timestamp":"2025-11-28T03:03:13.863Z"}
+{"level":"info","message":"Aura Backend Server running on port 3001","timestamp":"2025-11-28T03:03:14.995Z"}
+{"level":"info","message":"Environment: development","timestamp":"2025-11-28T03:03:14.996Z"}
+{"level":"info","message":"Health check: http://localhost:3001/health","timestamp":"2025-11-28T03:03:14.996Z"}

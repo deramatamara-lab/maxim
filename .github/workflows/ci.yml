@@ -1,0 +1,220 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-progress runs for the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # === Quality Gates ===
+  lint-and-typecheck:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        
+      - name: Run ESLint
+        run: pnpm run lint --max-warnings 0
+        
+      - name: Run TypeScript type check
+        run: pnpm run lint:types
+        
+      - name: Check for console statements
+        run: |
+          if grep -r "console\.\(log\|debug\|info\)" --include="*.ts" --include="*.tsx" src/; then
+            echo "❌ Found console.log/debug/info statements. Use structured logger instead."
+            exit 1
+          fi
+          echo "✅ No console statements found"
+
+  # === Unit Tests ===
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        
+      - name: Run tests
+        run: pnpm test --coverage --maxWorkers=2
+        
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  # === Security Audit ===
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Run npm audit
+        run: pnpm audit --audit-level=high
+        continue-on-error: true
+        
+      - name: Check for secrets in code
+        run: |
+          if grep -r "sk_live_\|pk_live_\|api_key.*=.*['\"][a-zA-Z0-9]{20,}" --include="*.ts" --include="*.tsx" src/; then
+            echo "❌ Found potential secrets in code"
+            exit 1
+          fi
+          echo "✅ No secrets found in code"
+          
+      - name: Verify .env files are gitignored
+        run: |
+          if git ls-files | grep -E "^\.env$|^\.env\.production$|^\.env\.staging$"; then
+            echo "❌ .env files should not be committed"
+            exit 1
+          fi
+          echo "✅ .env files properly gitignored"
+
+  # === Build Verification ===
+  build-web:
+    name: Build Web Bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [lint-and-typecheck, test]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        
+      - name: Build web
+        run: pnpm run build:web || npx expo export:web
+        env:
+          EXPO_PUBLIC_ENV: staging
+          EXPO_PUBLIC_API_BASE_URL: https://api-staging.example.com
+          EXPO_PUBLIC_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN_STAGING }}
+          EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_KEY_STAGING }}
+          
+      - name: Check bundle size
+        run: |
+          if [ -d "dist" ] || [ -d "web-build" ]; then
+            BUNDLE_DIR=$([ -d "dist" ] && echo "dist" || echo "web-build")
+            SIZE=$(du -sh $BUNDLE_DIR | cut -f1)
+            echo "📦 Bundle size: $SIZE"
+            
+            # Warn if bundle is too large (>10MB)
+            SIZE_MB=$(du -sm $BUNDLE_DIR | cut -f1)
+            if [ $SIZE_MB -gt 10 ]; then
+              echo "⚠️  Warning: Bundle size exceeds 10MB"
+            fi
+          fi
+
+  # === Performance Checks ===
+  performance:
+    name: Performance Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Check for performance anti-patterns
+        run: |
+          echo "Checking for performance anti-patterns..."
+          
+          # Check for missing useMemo/useCallback in expensive operations
+          if grep -r "\.map\|\.filter\|\.reduce" --include="*.tsx" src/components/ | grep -v "useMemo\|useCallback" | head -5; then
+            echo "⚠️  Warning: Found array operations without memoization"
+          fi
+          
+          # Check for large inline styles
+          if grep -r "style={{" --include="*.tsx" src/ | wc -l | awk '{if ($1 > 50) print "⚠️  Warning: Found " $1 " inline styles. Consider StyleSheet.create"}'; then
+            :
+          fi
+          
+          echo "✅ Performance check complete"
+
+  # === All Checks Passed ===
+  all-checks:
+    name: All Checks Passed
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, test, security, build-web, performance]
+    if: always()
+    
+    steps:
+      - name: Check all jobs
+        run: |
+          if [ "${{ needs.lint-and-typecheck.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.security.result }}" != "success" ] || \
+             [ "${{ needs.build-web.result }}" != "success" ] || \
+             [ "${{ needs.performance.result }}" != "success" ]; then
+            echo "❌ One or more checks failed"
+            exit 1
+          fi
+          echo "✅ All checks passed!"

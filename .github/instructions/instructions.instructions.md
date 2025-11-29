@@ -1,0 +1,383 @@
+🔧 Project Aura – UI Shell Refactor Instructions (for this HTML/JSX file)
+
+You are my senior Aura UI engineer. Your job is to take the current cinematic web shell (the file that contains ClientApp, Globe, DetailedMap, HomeScreen, etc.) and bring it 100% in line with the Project Aura v2 spec above.
+
+You must follow these rules in order:
+
+1. Kill Local Design System; Import Global ds
+
+Problem now
+
+This file defines a local const ds = { ... } and a big styles object with hardcoded values, which conflicts with the canonical spec src/constants/theme.ts.
+
+Do this
+
+Delete the local ds object entirely.
+
+Import the canonical design system:
+
+import { ds } from '@/constants/theme';
+
+Replace every hardcoded hex/rgba/radius/spacing/font size in this file with the appropriate ds tokens:
+
+Colors → ds.colors.\*
+
+Radius → ds.radius.\*
+
+Spacing → ds.spacing.\*
+
+Font sizes → ds.typography.size.\*
+
+Weights → ds.typography.weight.\*
+
+Shadow / blur / effects → ds.shadow._, ds.effects._, ds.motion.\*
+
+Remove all “magic numbers” like margin: '20px', borderRadius: '40px', etc. Use tokens or combinations of tokens (e.g. ds.spacing.lg \* 2).
+
+Fix any broken references (e.g. current code uses ds.shadows.glow which does not exist). Only use keys defined in the spec.
+
+Acceptance
+
+No inline literal color/radius/spacing values remain in this file.
+
+ESLint & TS see only the imported ds as the style source.
+
+2. Remove Framer Motion; Use Reanimated + Moti
+
+Problem now
+
+The file uses framer-motion (motion, AnimatePresence) on web.
+
+Do this
+
+Remove:
+
+import { motion, AnimatePresence } from 'framer-motion';
+
+Replace motion primitives with:
+
+React Native Reanimated Layout Animations for entrance/exit/layout transitions.
+
+Moti (@motify/core / @motify/components) for declarative animation wrappers on views/buttons.
+
+Recreate the same motion grammar using ds.motion:
+
+Entrance: opacity + translateY + scale using ds.motion.duration.entrance and ds.motion.easing.entrance.
+
+Exit: same for ds.motion.duration.exit.
+
+Micro-taps: scale 1 → 0.97 → 1 using ds.motion.duration.micro and ds.motion.easing.micro.
+
+Extract reusable motion presets into a small helper file (e.g. src/motion.ts) if not already created, and use it instead of ad-hoc animation configs.
+
+Acceptance
+
+No imports from framer-motion.
+
+All animations in this shell use Reanimated/Moti and reference ds.motion.\*.
+
+3. Remove Direct DOM / Web APIs; Use React Native + Expo
+
+Problem now
+
+The shell uses document, window, canvas, web AudioContext, and directly manipulates <div>, <button>, <input> etc. That is incompatible with the Expo RN spec.
+
+Do this
+
+Replace all DOM elements with React Native primitives:
+
+<div> → <View>
+
+<button> → <Pressable> or custom <NeonButton />
+
+<input> → <TextInput>
+
+<canvas> → RN-compatible 3D surface (see step 4)
+
+Use StyleSheet.create with ds tokens, not inline style objects.
+
+Remove use of:
+
+document.createElement, document.head.appendChild, etc.
+
+window.AudioContext, window.THREE, window.maplibregl, global scripts injection.
+
+Font loading:
+
+Delete the document.head Google Fonts hack.
+
+Ensure Poppins is loaded in the root layout (\_layout.tsx) via expo-font / useFonts, as defined in the Project Aura spec. This file must assume fonts are already ready.
+
+Acceptance
+
+No document._ or window._ calls in this file.
+
+No DOM tags remain; everything uses React Native primitives.
+
+App works inside Expo (iOS/Android/Web) without browser-only hacks.
+
+4. Replace Raw Three.js + MapLibre with Spec Libraries
+
+Problem now
+
+Globe uses window.THREE and window.gsap with script tags.
+
+DetailedMap uses window.maplibregl and hard-coded MapLibre style URLs.
+
+Do this
+
+4.1 3D Globe (Cinematic Core)
+
+Replace the manual three.js setup with the official stack:
+
+@react-three/fiber (native or expo-three integration)
+
+@react-three/drei for helper components
+
+Integrate into an Expo-compatible surface (e.g. Canvas from @react-three/fiber inside a RN View).
+
+Implement GlobeScene that matches the spec:
+
+Low-poly sphere for earth.
+
+Atmosphere halo using shaderMaterial.
+
+Starfield as points.
+
+Camera with a zoomToLocation(lat, lon) API exposed via props.
+
+Ensure performance gates:
+
+Camera movement triggered via Reanimated values where appropriate.
+
+Idle FPS ≥ 60 on mid-tier Android (no heavy dynamic allocations).
+
+4.2 Map
+
+Replace maplibre-gl with @rnmapbox/maps as required by the spec.
+
+Implement a MapContainer component:
+
+Custom dark style (from config).
+
+Camera that syncs with the globe (pitch ≈ 60°, same geo position).
+
+Layer stack for future route lines and markers.
+
+Implement the cross-fade logic:
+
+Globe opacity 1 → 0 while Map opacity 0 → 1 over ~500ms.
+
+Use Reanimated + ds.motion timings.
+
+Acceptance
+
+No CDN script tags or window.THREE / window.maplibregl.
+
+Globe + Map both implemented using the approved libraries and wired for Phase 2/3 gates (FPS, smooth transitions).
+
+5. Multisensory: Replace playSound with useHaptics + useSound
+
+Problem now
+
+The file uses an inline Web Audio API helper playSound().
+
+Do this
+
+Delete the playSound function completely.
+
+Import and use the canonical hooks:
+
+import { useHaptics } from '@/hooks/useHaptics';
+import { useSound } from '@/hooks/useSound';
+
+Inside the top-level component, call the hooks:
+
+const haptics = useHaptics();
+const sound = useSound();
+
+Wire interactions:
+
+Primary CTAs, tab switches, ride selection, etc:
+
+haptics.tap() + sound.play('tapSoft')
+
+Confirm ride:
+
+haptics.confirm() + sound.play('success')
+
+Errors:
+
+haptics.error() + sound.play('warning')
+
+Ensure latency budget: calls are synchronous from the handler; hooks must preload assets so playback begins < 20 ms after tap.
+
+Acceptance
+
+No Web Audio API usage.
+
+All primary interactions in this shell call both haptics and sound via the central hooks.
+
+6. Extract Core Components: GlassView, NeonButton, AuraCard, FloatingTabBar
+
+Problem now
+
+This file manually builds glass cards, buttons, and the nav bar with local styles and inline layout.
+
+Do this
+
+Replace the ad-hoc glass card with <GlassView>:
+
+Import GlassView from src/components/ui/GlassView.
+
+Props:
+
+elevated?: boolean
+
+interactive?: boolean
+
+For the search card and bottom sheet, wrap content inside <GlassView> with correct radius and blur (from ds).
+
+Replace all primary CTAs (Search Rides, Confirm Aura Prime, etc.) with <NeonButton>:
+
+Props:
+
+variant, size, icon, onPress, loading, disabled.
+
+Ensure Press behavior = scale + neon rim intensity + haptic + sound.
+
+Use <AuraCard> for ride options:
+
+Each ride option is an AuraCard with accent stripe, layout animation, and stateful selection.
+
+No local borders or backgrounds outside DS.
+
+Replace the bottom nav with <FloatingTabBar>:
+
+Tab items: home, activity, location, profile.
+
+Active tab uses the glowing dot + elevation defined in the spec.
+
+Tab switches trigger haptic + sound + layout animation.
+
+Acceptance
+
+This shell only composes shared UI primitives; it does not implement raw “card/button/nav” markup itself.
+
+Visuals of all cards, buttons, and nav are driven via the shared components and DS.
+
+7. Enforce Phase Discipline for This Shell
+
+Problem now
+
+Current file mixes multiple phases: globe, map, rider flow, selection, nav, etc. in one place.
+
+Do this
+
+Reorganize logic so this file respects the 6-phase pipeline:
+
+Phase 1: Premium Shell + Onboarding (background gradient/noise, GlassView, NeonButton, AuraCard prototypes).
+
+Phase 2: Globe layer (no Map yet).
+
+Phase 3: Globe → Map crossfade.
+
+Phase 4: Rider Flow (destination input, ride cards, CTA).
+
+Phase 5: Driver Flow (can be routed from this shell, but in separate screens).
+
+Phase 6: Performance optimization, not new features.
+
+For this file specifically:
+
+Clearly mark which parts belong to which phase (comments + function structure).
+
+Do not add Phase 4+ elements until Phase 2/3 gates are met and logged.
+
+Add an internal comment block at top:
+
+/\*\*
+
+- Aura Shell: Phases implemented here:
+- - Phase 1: Premium shell
+- - Phase 2: Cinematic core (Globe)
+- - Phase 3: Seamless transition (Globe -> Map)
+- Rider/Driver flows live in separate routed screens.
+  \*/
+
+Acceptance
+
+Code structure makes it obvious which phase a given block belongs to.
+
+No future-phase logic leaks into earlier-phase surfaces.
+
+8. Fix Concrete Bugs While Refactoring
+
+While doing the refactor, also fix these specific issues:
+
+Icon name mismatch
+
+Icon supports home, activity, location, profile, but HomeScreen uses <Icon name="user" ... />.
+
+Change that to use the proper profile icon or add user to the icon registry (but be consistent).
+
+Shadow mismatch
+
+Current code uses ds.shadows.glow but DS defines shadow.soft etc.
+
+Use ds.shadow.soft (or a new shadow.glow added centrally in theme.ts), but not a random local key.
+
+Error handling
+
+Current errorMsg shows raw text; convert to DS error component (error banner/toast), reusing global error pattern.
+
+Acceptance
+
+No TypeScript errors from missing ds keys or icon names.
+
+Error display uses shared DS patterns.
+
+9. Quality Gates for This File
+
+This file is considered “done” only when:
+
+Type & lint
+
+pnpm lint
+
+pnpm lint:types
+
+tsc --noEmit
+all pass with 0 errors.
+
+Visual & motion
+
+All visuals use ds and shared components, no local visual hacks.
+
+All interactions are multisensory (motion + haptic + sound + light).
+
+Performance
+
+On device/emulator: globe idle FPS ≥ 60.
+
+Globe → Map transition maintains ≥ 55 FPS.
+
+Localization-safe
+
+All strings go through i18n keys (no inline text).
+
+Layout works in EN and BG with no critical truncation.
+
+Phase compliance
+
+Features present in this file are strictly within the implemented phases; no half-built future features.
+
+Document the refactor in progress.md:
+
+Phase(s) touched
+
+Files edited
+
+Gates verified
+
+Remaining limitations (must be empty to move to next phase)
