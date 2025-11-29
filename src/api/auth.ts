@@ -46,8 +46,54 @@ export interface RefreshTokenResponse {
 class AuthService {
   /**
    * User login
+   * In development mode with USE_MOCK_API=true, allows demo credentials
    */
   async login(credentials: LoginCredentials): Promise<ApiResponse<AuthResponse>> {
+    // Check for demo login in development mode
+    const useMockApi = process.env.EXPO_PUBLIC_USE_MOCK_API === 'true';
+    const isDemoLogin = credentials.email === 'demo@aura.com' && credentials.password === 'demo123';
+    
+    if (useMockApi && isDemoLogin) {
+      // Return mock successful login for demo credentials
+      const mockResponse: AuthResponse = {
+        user: {
+          id: 'demo-user-001',
+          email: 'demo@aura.com',
+          name: 'Demo User',
+          phone: '+1234567890',
+          role: 'rider',
+          avatar: undefined,
+          rating: 4.9,
+          rideCount: 42,
+          memberSince: '2024-01-01',
+          paymentMethods: [],
+          savedPlaces: [],
+          preferences: {
+            notifications: true,
+            language: 'en',
+            theme: 'dark',
+          },
+        },
+        token: 'mock-jwt-token-' + Date.now(),
+        refreshToken: 'mock-refresh-token-' + Date.now(),
+        expiresIn: 3600,
+      };
+      
+      // Store tokens securely
+      await apiClient.setAuthToken(
+        mockResponse.token,
+        mockResponse.refreshToken,
+        mockResponse.expiresIn
+      );
+      
+      return {
+        success: true,
+        data: mockResponse,
+        status: 200,
+      };
+    }
+    
+    // Real API call for non-demo logins
     const response = await apiClient.post<AuthResponse, LoginCredentials>('/auth/login', credentials, 'medium', false);
     
     if (response.success && response.data) {

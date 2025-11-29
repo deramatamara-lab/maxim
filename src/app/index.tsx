@@ -22,7 +22,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { PremiumButton } from '@/components/ui/PremiumButton';
 import { SleekNav } from '@/components/ui/SleekNav';
 import { CustomIcon } from '@/components/ui/CustomIcon';
-import { ThemeToggle, LocaleToggle } from '@/components/ui/ThemeToggle';
+import { LocaleToggle } from '@/components/ui/ThemeToggle';
 import { AccountSettings } from '@/components/navigation/AccountSettings';
 import { LoginScreen } from '@/components/auth/LoginScreen';
 import { RegisterScreen } from '@/components/auth/RegisterScreen';
@@ -288,33 +288,27 @@ function PremiumShellScreenContent() {
         </View>
 
         <View style={styles.uiLayer}>
-          <Animated.View style={contentAnimatedStyle}>
-            <View style={styles.header}>
-              <View style={styles.welcomeContainer}>
-                <Text style={styles.welcomeText}>Good evening,</Text>
-                <Text style={styles.nameText}>{user?.name || 'Guest'}</Text>
-              </View>
-              <Animated.View style={[styles.header, headerAnimatedStyle]}>
-                <TouchableOpacity onPress={handleMenuToggle} style={styles.menuButton}>
-                  <Animated.View style={menuAnimatedStyle}>
-                    <CustomIcon name="menu" size={ds.layout.iconSize.md} color={colors.textSecondary} />
-                  </Animated.View>
-                </TouchableOpacity>
-                
-                <View style={styles.headerCenter}>
-                  <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Welcome back</Text>
-                  <Text style={[styles.nameText, { color: colors.textPrimary }]}>{user?.name || 'Guest'}</Text>
+          <Animated.View style={[styles.contentContainer, contentAnimatedStyle]}>
+            {/* Header Section - Floating glass header like reference */}
+            <View style={styles.headerRow}>
+              <GlassCard style={styles.headerCard}>
+                <View style={styles.headerCardContent}>
+                  <TouchableOpacity onPress={handleMenuToggle} style={styles.avatarButton}>
+                    <CustomIcon name="profile" size={20} color={colors.textPrimary} />
+                  </TouchableOpacity>
+                  <View style={styles.headerTextContainer}>
+                    <Text style={[styles.welcomeText, { color: colors.textSecondary }]}>WELCOME BACK</Text>
+                    <Text style={[styles.nameText, { color: colors.textPrimary }]}>{user?.name || 'Guest'}</Text>
+                  </View>
                 </View>
-                
-                <View style={styles.headerRight}>
-                  <Animated.View style={[styles.toggleContainer, toggleAnimatedStyle]}>
-                    <LocaleToggle style={styles.localeToggle} />
-                    <ThemeToggle size="sm" style={styles.themeToggle} />
-                  </Animated.View>
-                </View>
+              </GlassCard>
+              
+              <Animated.View style={[styles.toggleContainer, toggleAnimatedStyle]}>
+                <LocaleToggle style={styles.localeToggle} />
               </Animated.View>
             </View>
 
+            {/* Main Content - Search card pushed to bottom */}
             <View style={styles.mainContent}>
               <Animated.View style={glassAnimatedStyle}>
                 <GlassCard elevated style={styles.glassCard}>
@@ -441,65 +435,66 @@ const styles = StyleSheet.create({
     position: 'relative',
     zIndex: 10,
     flex: 1,
+    pointerEvents: 'box-none',
   },
-  header: {
-    paddingHorizontal: ds.spacing.xl,
-    paddingTop: ds.spacing.xxxl + ds.spacing.xl,
-    paddingBottom: ds.spacing.xl,
+  contentContainer: {
+    flex: 1,
+    flexDirection: 'column',
+  },
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    paddingHorizontal: ds.spacing.lg,
+    paddingTop: ds.spacing.lg,
   },
-  menuButton: {
-    width: ds.spacing.xl + ds.spacing.md,
-    height: ds.spacing.xl + ds.spacing.md,
-    borderRadius: (ds.spacing.xl + ds.spacing.md) / 2,
-    backgroundColor: ds.colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
+  headerCard: {
+    // Just sizing, GlassCard handles the glass effect
   },
-  welcomeContainer: {
-    flex: 1,
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerRight: {
+  headerCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  avatarButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: ds.colors.glassBorder,
+    marginRight: ds.spacing.sm,
+  },
+  headerTextContainer: {
+    flexDirection: 'column',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing.sm,
   },
   welcomeText: {
     fontFamily: ds.typography.family,
-    fontSize: ds.typography.size.caption,
+    fontSize: 10,
     color: ds.colors.textSecondary,
-    marginBottom: ds.spacing.xs,
-  },
-  subtitle: {
-    fontFamily: ds.typography.family,
-    fontSize: ds.typography.size.caption,
-    color: ds.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
   },
   nameText: {
     fontFamily: ds.typography.family,
-    fontSize: ds.typography.size.display,
+    fontSize: ds.typography.size.body,
     fontWeight: ds.typography.weight.semibold,
     color: ds.colors.textPrimary,
-    letterSpacing: -0.5,
   },
   mainContent: {
     flex: 1,
-    paddingHorizontal: ds.spacing.xl,
-    paddingBottom: ds.spacing.xxxl - ds.spacing.sm,
+    paddingHorizontal: ds.spacing.lg,
+    paddingBottom: ds.spacing.xxxl + ds.spacing.lg,
     justifyContent: 'flex-end',
   },
   glassCard: {
-    backgroundColor: ds.colors.surface,
-    borderWidth: 1,
-    borderColor: ds.colors.border,
-    marginBottom: ds.spacing.xl,
-    paddingHorizontal: ds.spacing.xl,
-    paddingVertical: ds.spacing.xl,
+    // GlassCard already has padding
   },
   inputRow: {
     flexDirection: 'row',
@@ -587,9 +582,6 @@ const styles = StyleSheet.create({
   },
   localeToggle: {
     marginRight: ds.spacing.xs,
-  },
-  themeToggle: {
-    marginLeft: ds.spacing.xs,
   },
   devPortalButton: {
     position: 'absolute',
